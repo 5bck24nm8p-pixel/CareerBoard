@@ -26,6 +26,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v2h3v16H4V5h3V3Zm2 2v2h6V5H9ZM6 7v12h12V7h-1v2H7V7H6Zm3.3 7.9 5.3-5.3 1.4 1.4-6.7 6.7-3.3-3.3 1.4-1.4 1.9 1.9Z"></path></svg>
             タスク一覧
           </button>
+          <button class="nav-button" type="button" data-view="notes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14v18H5V3Zm2 2v14h10V5H7Zm2 3h6v2H9V8Zm0 4h6v2H9v-2Zm0 4h4v2H9v-2Z"></path></svg>
+            ES/面接メモ
+          </button>
         </nav>
       </aside>
 
@@ -55,6 +59,16 @@
               <input id="companySearch" type="search" placeholder="企業名・業界・メモを検索">
             </label>
           </section>
+
+          <div class="toolbar">
+            <label class="compact-field">
+              並び替え
+              <select id="companySort">
+                <option value="priority">志望度順</option>
+                <option value="industry">業界別</option>
+              </select>
+            </label>
+          </div>
 
           <div id="companyGrid" class="company-grid"></div>
         </section>
@@ -121,6 +135,68 @@
             </section>
           </div>
         </section>
+
+        <section id="notesView" class="view">
+          <form id="noteForm" class="task-composer">
+            <input type="hidden" name="id">
+            <div class="composer-head">
+              <div>
+                <p class="eyebrow">ES / Interview Notes</p>
+                <h3 id="noteFormTitle">メモを追加</h3>
+              </div>
+              <button class="primary-button" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+                保存
+              </button>
+            </div>
+            <div class="note-form-grid">
+              <label>
+                企業名
+                <select name="companyId" id="noteCompanySelect" required></select>
+              </label>
+              <label>
+                メモの種類
+                <select name="type" required>
+                  <option value="" disabled selected>種類を選択</option>
+                  <option value="research">企業研究</option>
+                  <option value="es">ES</option>
+                  <option value="interview">面接</option>
+                </select>
+              </label>
+              <label class="wide">
+                メモ
+                <textarea name="body" rows="7" required placeholder="企業研究メモ、ESで使う材料、面接で話すこと・聞かれた質問など"></textarea>
+              </label>
+            </div>
+          </form>
+
+          <section class="panel">
+            <div class="section-head">
+              <h3>保存したメモ</h3>
+              <span id="noteCount" class="count-pill">0件</span>
+            </div>
+            <div class="note-filters">
+              <label class="quick-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 0 1 4.8 9.6l4.3 4.3-1.4 1.4-4.3-4.3A6 6 0 1 1 10 4Zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"></path></svg>
+                <input id="noteSearch" type="search" placeholder="メモを検索">
+              </label>
+              <label>
+                企業
+                <select id="noteFilterCompany"></select>
+              </label>
+              <label>
+                種類
+                <select id="noteFilterType">
+                  <option value="all">すべて</option>
+                  <option value="research">企業研究</option>
+                  <option value="es">ES</option>
+                  <option value="interview">面接</option>
+                </select>
+              </label>
+            </div>
+            <div id="noteList" class="note-list"></div>
+          </section>
+        </section>
       </main>
 
       <aside class="drawer" id="drawer" aria-label="企業追加パネル">
@@ -142,6 +218,10 @@
             <input name="mypageUrl" type="url" placeholder="https://">
           </label>
           <label>
+            個人ID
+            <input name="personalId" placeholder="例: MY-2026-001">
+          </label>
+          <label>
             業界
             <select name="industry" id="industrySelect"></select>
           </label>
@@ -153,6 +233,22 @@
               <option value="3">3 普通</option>
               <option value="2">2 低め</option>
               <option value="1">1 情報収集中</option>
+            </select>
+          </label>
+          <label>
+            インターン結果
+            <select name="internResult">
+              <option value="none">未設定</option>
+              <option value="pass">インターン合格</option>
+              <option value="fail">インターン不合格</option>
+            </select>
+          </label>
+          <label>
+            本選考結果
+            <select name="mainResult">
+              <option value="none">未設定</option>
+              <option value="pass">本選考合格</option>
+              <option value="fail">本選考不合格</option>
             </select>
           </label>
           <label>

@@ -249,6 +249,16 @@ p {
   line-height: 1.35;
 }
 
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.compact-field {
+  width: min(220px, 100%);
+}
+
 .quick-search {
   min-height: 44px;
   display: flex;
@@ -302,10 +312,23 @@ p {
   line-height: 1.6;
 }
 
+.note-preview {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.result-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .priority-pill,
 .count-pill,
 .date-pill,
-.task-type-pill {
+.task-type-pill,
+.result-pill,
+.note-type-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -315,6 +338,36 @@ p {
   font-size: 0.76rem;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.result-pill {
+  background: var(--soft);
+  color: var(--muted);
+}
+
+.result-pill.is-pass {
+  background: #eef8f4;
+  color: #16805f;
+}
+
+.result-pill.is-fail {
+  background: #fff0f0;
+  color: #c24141;
+}
+
+.note-type-pill {
+  background: #edf4ff;
+  color: var(--blue);
+}
+
+.note-type-pill.is-es {
+  background: #fff0f4;
+  color: #b63f61;
+}
+
+.note-type-pill.is-interview {
+  background: #f2edff;
+  color: #7256b3;
 }
 
 .priority-pill {
@@ -381,8 +434,23 @@ p {
   gap: 12px;
 }
 
-.task-form-grid .wide {
+.task-form-grid .wide,
+.note-form-grid .wide {
   grid-column: 1 / -1;
+}
+
+.note-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.note-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 0.45fr) minmax(140px, 0.35fr);
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 14px;
 }
 
 .task-layout {
@@ -399,6 +467,54 @@ p {
 .task-list {
   display: grid;
   gap: 10px;
+}
+
+.note-list {
+  display: grid;
+  gap: 16px;
+}
+
+.note-group {
+  display: grid;
+  gap: 10px;
+}
+
+.note-group-title {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.note-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+.note-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.note-card h4 {
+  margin: 6px 0 0;
+  font-size: 1rem;
+}
+
+.note-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.note-card-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .task-row {
@@ -688,7 +804,7 @@ textarea:focus {
   }
 
   .nav {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .workspace {
@@ -709,7 +825,9 @@ textarea:focus {
 
   .company-grid,
   .task-layout,
-  .task-form-grid {
+  .task-form-grid,
+  .note-form-grid,
+  .note-filters {
     grid-template-columns: 1fr;
   }
 
