@@ -183,6 +183,19 @@
         </button>
       </section>
     </div>
+    <div class="modal-backdrop confirm-backdrop" id="confirmModal" aria-hidden="true">
+      <section class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+        <div>
+          <p class="eyebrow">Confirm</p>
+          <h2 id="confirmModalTitle">タスクを完了にしますか？</h2>
+          <p id="confirmTaskText" class="confirm-text">このタスクは直近1週間の一覧から消えます。</p>
+        </div>
+        <div class="confirm-actions">
+          <button class="ghost-button" type="button" id="cancelCompleteTask">キャンセル</button>
+          <button class="primary-button" type="button" id="confirmCompleteTask">完了にする</button>
+        </div>
+      </section>
+    </div>
     <script src="./app.js"></script>
   </body>
 </html>

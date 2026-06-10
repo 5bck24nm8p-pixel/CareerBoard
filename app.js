@@ -89,7 +89,10 @@ const dayModal = document.querySelector("#dayModal");
 const dayModalTitle = document.querySelector("#dayModalTitle");
 const dayTaskList = document.querySelector("#dayTaskList");
 const useDayForTask = document.querySelector("#useDayForTask");
+const confirmModal = document.querySelector("#confirmModal");
+const confirmTaskText = document.querySelector("#confirmTaskText");
 let selectedCalendarDate = offsetDate(0);
+let pendingCompleteTaskId = "";
 
 function offsetDate(days) {
   const date = new Date();
@@ -202,6 +205,8 @@ function renderCompanySelects() {
   taskTypeSelect.innerHTML = `<option value="" disabled selected>タスク状況を選択</option>` + taskTypes
     .map((type) => `<option value="${type.id}">${type.label}</option>`)
     .join("");
+  taskCompanySelect.value = "";
+  taskTypeSelect.value = "";
 }
 
 function renderCompanies() {
@@ -311,6 +316,38 @@ function closeDayModal() {
   dayModal.setAttribute("aria-hidden", "true");
 }
 
+function openConfirmModal(taskId) {
+  const task = state.tasks.find((item) => item.id === taskId);
+  const company = task ? companyById(task.companyId) : null;
+  const type = task ? taskTypeById(task.type) : null;
+  pendingCompleteTaskId = taskId;
+  confirmTaskText.textContent = task
+    ? `${company?.name || "企業未設定"} / ${type?.label || "タスク"} を完了にします。`
+    : "このタスクを完了にします。";
+  confirmModal.classList.add("is-open");
+  confirmModal.setAttribute("aria-hidden", "false");
+}
+
+function closeConfirmModal() {
+  pendingCompleteTaskId = "";
+  confirmModal.classList.remove("is-open");
+  confirmModal.setAttribute("aria-hidden", "true");
+}
+
+function completePendingTask() {
+  const task = state.tasks.find((item) => item.id === pendingCompleteTaskId);
+  if (!task) {
+    closeConfirmModal();
+    return;
+  }
+  task.done = true;
+  saveState();
+  render();
+  closeConfirmModal();
+  if (dayModal.classList.contains("is-open")) openDayModal(selectedCalendarDate);
+  showToast("タスクを完了しました");
+}
+
 function linkButton(url, label) {
   return `<a class="small-button" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">
     ${label}
@@ -388,34 +425,31 @@ function shiftMonth(amount) {
 }
 
 document.addEventListener("click", (event) => {
+  const pickDate = event.target.closest("[data-pick-date]");
+  if (pickDate) {
+    event.preventDefault();
+    event.stopPropagation();
+    openDayModal(pickDate.dataset.pickDate);
+    return;
+  }
+
   const nav = event.target.closest("[data-view]");
   const editCompany = event.target.closest("[data-edit-company]");
   const createTask = event.target.closest("[data-create-task]");
   const completeTask = event.target.closest("[data-complete-task]");
-  const pickDate = event.target.closest("[data-pick-date]");
 
   if (nav) setView(nav.dataset.view);
   if (editCompany) openDrawer(companyById(editCompany.dataset.editCompany));
   if (createTask) {
     setView("tasks");
-    taskForm.elements.companyId.value = createTask.dataset.createTask;
+    taskForm.elements.companyId.value = "";
     taskForm.elements.date.value = offsetDate(1);
     taskForm.elements.type.value = "";
     taskForm.elements.time.value = "";
-    taskForm.elements.memo.focus();
+    taskForm.elements.companyId.focus();
   }
   if (completeTask) {
-    const task = state.tasks.find((item) => item.id === completeTask.dataset.completeTask);
-    if (task) {
-      task.done = true;
-      saveState();
-      render();
-      if (dayModal.classList.contains("is-open")) openDayModal(selectedCalendarDate);
-      showToast("タスクを完了しました");
-    }
-  }
-  if (pickDate) {
-    openDayModal(pickDate.dataset.pickDate);
+    openConfirmModal(completeTask.dataset.completeTask);
   }
 });
 
@@ -428,10 +462,15 @@ useDayForTask.addEventListener("click", () => {
   taskForm.elements.date.value = selectedCalendarDate;
   closeDayModal();
   setView("tasks");
-  taskForm.elements.memo.focus();
+  taskForm.elements.companyId.focus();
 });
 dayModal.addEventListener("click", (event) => {
   if (event.target === dayModal) closeDayModal();
+});
+document.querySelector("#cancelCompleteTask").addEventListener("click", closeConfirmModal);
+document.querySelector("#confirmCompleteTask").addEventListener("click", completePendingTask);
+confirmModal.addEventListener("click", (event) => {
+  if (event.target === confirmModal) closeConfirmModal();
 });
 
 document.querySelector("#resetDemo").addEventListener("click", () => {
@@ -499,6 +538,8 @@ taskForm.addEventListener("submit", (event) => {
 });
 
 companySearch.value = state.search;
+taskForm.elements.companyId.value = "";
+taskForm.elements.type.value = "";
 taskForm.elements.date.value = offsetDate(1);
 render();
 setView(state.activeView);
