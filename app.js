@@ -5,9 +5,7 @@ const taskTypes = [
   { id: "es", label: "ES締切", color: "#ffe0e6" },
   { id: "webtest", label: "WEBテスト", color: "#d9f5df" },
   { id: "testcenter", label: "テストセンター", color: "#fff0c7" },
-  { id: "first", label: "1次面接", color: "#e3ddff" },
-  { id: "second", label: "2次面接", color: "#d7f4f0" },
-  { id: "third", label: "3次面接", color: "#ffe4c7" },
+  { id: "interview", label: "面接", color: "#e3ddff" },
   { id: "final", label: "最終面接", color: "#ffd6d1" },
   { id: "gd", label: "グループディスカッション", color: "#e8edf3" }
 ];
@@ -44,6 +42,8 @@ const demoState = {
       personalId: "BL-2026-1042",
       industry: "IT / SaaS",
       priority: "5",
+      internStart: offsetDate(6),
+      internEnd: offsetDate(10),
       internResult: "pass",
       mainResult: "none",
       memo: "プロダクト志向が強い。一次面接では学生時代に工夫した経験を深掘りされそう。"
@@ -55,6 +55,8 @@ const demoState = {
       personalId: "TM-58391",
       industry: "広告 / メディア",
       priority: "3",
+      internStart: offsetDate(8),
+      internEnd: offsetDate(12),
       internResult: "none",
       mainResult: "none",
       memo: "説明会で事業領域を確認。志望理由はまだ弱い。"
@@ -66,13 +68,15 @@ const demoState = {
       personalId: "MN-ENTRY-77",
       industry: "メーカー",
       priority: "4",
+      internStart: "",
+      internEnd: "",
       internResult: "fail",
       mainResult: "none",
       memo: "勤務地と職種別採用の違いを確認する。"
     }
   ],
   tasks: [
-    { id: "t1", companyId: "c1", type: "first", date: offsetDate(2), time: "10:00", memo: "Zoom。逆質問を3つ用意", done: false },
+    { id: "t1", companyId: "c1", type: "interview", date: offsetDate(2), time: "10:00", memo: "Zoom。逆質問を3つ用意", done: false },
     { id: "t2", companyId: "c2", type: "es", date: offsetDate(1), time: "23:59", memo: "学生時代に力を入れたこと 400字", done: false },
     { id: "t3", companyId: "c3", type: "webtest", date: offsetDate(4), time: "", memo: "SPI。性格検査も忘れない", done: false },
     { id: "t4", companyId: "c1", type: "briefing", date: offsetDate(10), time: "18:00", memo: "社員座談会", done: false }
@@ -87,6 +91,7 @@ const demoState = {
 let state = loadState();
 
 const viewTitle = document.querySelector("#viewTitle");
+const topActions = document.querySelector(".top-actions");
 const companyGrid = document.querySelector("#companyGrid");
 const companySearch = document.querySelector("#companySearch");
 const companySort = document.querySelector("#companySort");
@@ -113,6 +118,10 @@ const dayModal = document.querySelector("#dayModal");
 const dayModalTitle = document.querySelector("#dayModalTitle");
 const dayTaskList = document.querySelector("#dayTaskList");
 const useDayForTask = document.querySelector("#useDayForTask");
+const taskModal = document.querySelector("#taskModal");
+const openTaskForm = document.querySelector("#openTaskForm");
+const noteModal = document.querySelector("#noteModal");
+const openNoteForm = document.querySelector("#openNoteForm");
 const confirmModal = document.querySelector("#confirmModal");
 const confirmModalTitle = document.querySelector("#confirmModalTitle");
 const confirmTaskText = document.querySelector("#confirmTaskText");
@@ -156,9 +165,15 @@ function migrateState(nextState) {
   nextState.notes ||= [];
   nextState.companies = (nextState.companies || []).map((company) => ({
     personalId: "",
+    internStart: "",
+    internEnd: "",
     internResult: "none",
     mainResult: "none",
     ...company
+  }));
+  nextState.tasks = (nextState.tasks || []).map((task) => ({
+    ...task,
+    type: ["first", "second", "third"].includes(task.type) ? "interview" : task.type
   }));
   return nextState;
 }
@@ -286,6 +301,7 @@ function renderCompanies() {
         ${resultPill("intern", company.internResult)}
         ${resultPill("main", company.mainResult)}
       </div>
+      ${internPeriodText(company)}
       <p>${escapeHtml(company.memo || "メモなし")}</p>
       <div class="card-actions">
         ${company.mypageUrl ? linkButton(company.mypageUrl, "マイページ") : `<button class="small-button" type="button" data-edit-company="${company.id}">URL設定</button>`}
@@ -306,6 +322,11 @@ function resultPill(kind, value = "none") {
   };
   const className = value === "pass" ? "is-pass" : value === "fail" ? "is-fail" : "";
   return `<span class="result-pill ${className}">${labels[kind][value || "none"]}</span>`;
+}
+
+function internPeriodText(company) {
+  if (!hasInternPeriod(company)) return "";
+  return `<span class="intern-period">インターン期間 ${formatDate(company.internStart)} - ${formatDate(company.internEnd)}</span>`;
 }
 
 function latestNotePreview(companyId) {
@@ -410,11 +431,14 @@ function renderCalendar() {
     date.setDate(start.getDate() + i);
     const value = localDateValue(date);
     const tasks = state.tasks.filter((task) => !task.done && task.date === value);
+    const interns = state.companies.filter((company) => isInternDay(company, value));
     const isCurrentMonth = date.getMonth() === month - 1;
     const isToday = value === offsetDate(0);
     cells.push(`
       <button class="calendar-day ${isCurrentMonth ? "" : "is-muted"} ${isToday ? "is-today" : ""}" type="button" data-pick-date="${value}">
         <strong>${date.getDate()}</strong>
+        ${interns.slice(0, 2).map((company) => internCalendarChip(company)).join("")}
+        ${interns.length > 2 ? `<span class="calendar-intern" style="--intern-color:#eef1f4;--intern-text:#526170">+${interns.length - 2}件</span>` : ""}
         ${tasks.slice(0, 3).map((task) => {
           const type = taskTypeById(task.type);
           return `<span class="calendar-task" style="--task-color:${type.color}">${task.time ? `${escapeHtml(task.time)} ` : ""}${type.label}</span>`;
@@ -425,14 +449,22 @@ function renderCalendar() {
   calendarGrid.innerHTML = cells.join("");
 }
 
+function internCalendarChip(company) {
+  const tone = internTone(company);
+  return `<span class="calendar-intern ${tone}" style="${internStyle(company)}">インターン ${escapeHtml(company.name)}</span>`;
+}
+
 function openDayModal(date) {
   selectedCalendarDate = date;
   dayModalTitle.textContent = `${formatDate(date)} のタスク`;
   const tasks = state.tasks
     .filter((task) => !task.done && task.date === date)
     .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99") || taskTypeById(a.type).label.localeCompare(taskTypeById(b.type).label, "ja"));
+  const interns = state.companies
+    .filter((company) => isInternDay(company, date))
+    .sort((a, b) => internToneOrder(a) - internToneOrder(b) || a.name.localeCompare(b.name, "ja"));
 
-  dayTaskList.innerHTML = tasks.length ? tasks.map((task) => {
+  const taskItems = tasks.map((task) => {
     const company = companyById(task.companyId);
     const type = taskTypeById(task.type);
     return `
@@ -446,7 +478,16 @@ function openDayModal(date) {
         </div>
       </article>
     `;
-  }).join("") : emptyState("この日の未完了タスクはありません。");
+  }).join("");
+  const internItems = interns.map((company) => `
+    <article class="day-intern-item" style="${internStyle(company)}">
+      <span class="task-type-pill" style="--task-color: var(--intern-color)">インターン期間</span>
+      <h3>${escapeHtml(company.name)}</h3>
+      <p>${formatDate(company.internStart)} - ${formatDate(company.internEnd)} / ${internResultLabel(company.internResult)}</p>
+    </article>
+  `).join("");
+
+  dayTaskList.innerHTML = taskItems + internItems || emptyState("この日の未完了タスクとインターン期間はありません。");
 
   dayModal.classList.add("is-open");
   dayModal.setAttribute("aria-hidden", "false");
@@ -455,6 +496,46 @@ function openDayModal(date) {
 function closeDayModal() {
   dayModal.classList.remove("is-open");
   dayModal.setAttribute("aria-hidden", "true");
+}
+
+function openTaskModal({ companyId = "", date = offsetDate(1) } = {}) {
+  resetTaskForm(date);
+  taskForm.elements.companyId.value = companyId;
+  taskModal.classList.add("is-open");
+  taskModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => {
+    (companyId ? taskForm.elements.type : taskForm.elements.companyId).focus();
+  }, 0);
+}
+
+function closeTaskModal() {
+  taskModal.classList.remove("is-open");
+  taskModal.setAttribute("aria-hidden", "true");
+}
+
+function openNoteModal({ companyId = "", noteId = "" } = {}) {
+  if (noteId) {
+    const note = state.notes.find((item) => item.id === noteId);
+    if (!note) return;
+    noteForm.elements.id.value = note.id;
+    noteForm.elements.companyId.value = note.companyId;
+    noteForm.elements.type.value = note.type;
+    noteForm.elements.body.value = note.body;
+    noteFormTitle.textContent = "メモを編集";
+  } else {
+    resetNoteForm();
+    noteForm.elements.companyId.value = companyId;
+  }
+  noteModal.classList.add("is-open");
+  noteModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => {
+    (companyId || noteId ? noteForm.elements.type : noteForm.elements.companyId).focus();
+  }, 0);
+}
+
+function closeNoteModal() {
+  noteModal.classList.remove("is-open");
+  noteModal.setAttribute("aria-hidden", "true");
 }
 
 function openConfirmModal(taskId) {
@@ -591,6 +672,7 @@ function setView(view) {
     panel.classList.toggle("is-visible", panel.id === `${view}View`);
   });
   viewTitle.textContent = { companies: "企業一覧", tasks: "タスク一覧", notes: "ES/面接メモ" }[view] || "企業一覧";
+  topActions.hidden = view !== "companies";
 }
 
 function openDrawer(company) {
@@ -598,6 +680,8 @@ function openDrawer(company) {
   companyForm.elements.name.value = company?.name || "";
   companyForm.elements.mypageUrl.value = company?.mypageUrl || "";
   companyForm.elements.personalId.value = company?.personalId || "";
+  companyForm.elements.internStart.value = company?.internStart || "";
+  companyForm.elements.internEnd.value = company?.internEnd || "";
   companyForm.elements.industry.value = normalizeIndustry(company?.industry);
   companyForm.elements.priority.value = company?.priority || "3";
   companyForm.elements.internResult.value = company?.internResult || "none";
@@ -627,6 +711,34 @@ function resetTaskForm(date = offsetDate(1)) {
   taskForm.elements.date.value = date;
   taskForm.elements.time.value = "";
   taskForm.elements.memo.value = "";
+}
+
+function hasInternPeriod(company) {
+  return Boolean(company.internStart && company.internEnd);
+}
+
+function isInternDay(company, value) {
+  return hasInternPeriod(company) && company.internStart <= value && value <= company.internEnd;
+}
+
+function internTone(company) {
+  if (company.internResult === "pass") return "is-pass";
+  if (company.internResult === "fail") return "is-fail";
+  return "is-none";
+}
+
+function internToneOrder(company) {
+  return { "is-pass": 0, "is-none": 1, "is-fail": 2 }[internTone(company)];
+}
+
+function internStyle(company) {
+  if (company.internResult === "pass") return "--intern-color:#7be3a8;--intern-text:#0f513b";
+  if (company.internResult === "fail") return "--intern-color:#ffd8dc;--intern-text:#9f2838";
+  return "--intern-color:#e8edf3;--intern-text:#526170";
+}
+
+function internResultLabel(value) {
+  return { pass: "インターン合格", fail: "インターン不合格", none: "インターン未設定" }[value || "none"];
 }
 
 function resetNoteForm() {
@@ -674,30 +786,19 @@ document.addEventListener("click", (event) => {
   }
   if (createTask) {
     setView("tasks");
-    resetTaskForm();
-    taskForm.elements.companyId.focus();
+    openTaskModal({ companyId: createTask.dataset.createTask });
   }
   if (noteCompany) {
     setView("notes");
-    noteForm.elements.companyId.value = noteCompany.dataset.noteCompany;
-    noteForm.elements.type.value = "";
-    noteForm.elements.body.focus();
     noteFilterCompany.value = noteCompany.dataset.noteCompany;
     noteFilterType.value = "all";
     noteSearch.value = "";
     renderNotes(noteCompany.dataset.noteCompany);
+    openNoteModal({ companyId: noteCompany.dataset.noteCompany });
   }
   if (editNote) {
-    const note = state.notes.find((item) => item.id === editNote.dataset.editNote);
-    if (note) {
-      setView("notes");
-      noteForm.elements.id.value = note.id;
-      noteForm.elements.companyId.value = note.companyId;
-      noteForm.elements.type.value = note.type;
-      noteForm.elements.body.value = note.body;
-      noteFormTitle.textContent = "メモを編集";
-      noteForm.elements.body.focus();
-    }
+    setView("notes");
+    openNoteModal({ noteId: editNote.dataset.editNote });
   }
   if (deleteNote) {
     openDeleteNoteConfirm(deleteNote.dataset.deleteNote);
@@ -709,14 +810,23 @@ document.addEventListener("click", (event) => {
 
 document.querySelector("#openCompanyForm").addEventListener("click", () => openDrawer());
 document.querySelector("#closeDrawer").addEventListener("click", closeDrawer);
+openTaskForm.addEventListener("click", () => openTaskModal());
+document.querySelector("#closeTaskModal").addEventListener("click", closeTaskModal);
+openNoteForm.addEventListener("click", () => openNoteModal());
+document.querySelector("#closeNoteModal").addEventListener("click", closeNoteModal);
 document.querySelector("#prevMonth").addEventListener("click", () => shiftMonth(-1));
 document.querySelector("#nextMonth").addEventListener("click", () => shiftMonth(1));
 document.querySelector("#closeDayModal").addEventListener("click", closeDayModal);
 useDayForTask.addEventListener("click", () => {
   closeDayModal();
   setView("tasks");
-  resetTaskForm(selectedCalendarDate);
-  taskForm.elements.companyId.focus();
+  openTaskModal({ date: selectedCalendarDate });
+});
+taskModal.addEventListener("click", (event) => {
+  if (event.target === taskModal) closeTaskModal();
+});
+noteModal.addEventListener("click", (event) => {
+  if (event.target === noteModal) closeNoteModal();
 });
 dayModal.addEventListener("click", (event) => {
   if (event.target === dayModal) closeDayModal();
@@ -735,6 +845,8 @@ document.querySelector("#resetDemo").addEventListener("click", () => {
   noteFilterCompany.value = "all";
   noteFilterType.value = "all";
   noteFormTitle.textContent = "メモを追加";
+  closeTaskModal();
+  closeNoteModal();
   saveState();
   render();
   setView("companies");
@@ -768,10 +880,20 @@ companyForm.addEventListener("submit", (event) => {
     personalId: data.get("personalId").trim(),
     industry: data.get("industry"),
     priority: data.get("priority"),
+    internStart: data.get("internStart"),
+    internEnd: data.get("internEnd"),
     internResult: data.get("internResult"),
     mainResult: data.get("mainResult"),
     memo: data.get("memo").trim()
   };
+  if ((company.internStart && !company.internEnd) || (!company.internStart && company.internEnd)) {
+    showToast("インターン期間は開始日と終了日を両方入れてください");
+    return;
+  }
+  if (company.internStart && company.internEnd && company.internStart > company.internEnd) {
+    showToast("インターン終了日は開始日以降にしてください");
+    return;
+  }
   const index = state.companies.findIndex((item) => item.id === id);
   if (index >= 0) state.companies[index] = company;
   else state.companies.push(company);
@@ -803,6 +925,7 @@ taskForm.addEventListener("submit", (event) => {
   saveState();
   render();
   resetTaskForm();
+  closeTaskModal();
   showToast("タスクを追加しました");
 });
 
@@ -830,6 +953,7 @@ noteForm.addEventListener("submit", (event) => {
   saveState();
   render();
   resetNoteForm();
+  closeNoteModal();
   showToast(index >= 0 ? "メモを更新しました" : "メモを追加しました");
 });
 

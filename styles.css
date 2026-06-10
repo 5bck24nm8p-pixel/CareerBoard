@@ -15,6 +15,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -249,6 +253,10 @@ p {
   line-height: 1.35;
 }
 
+.task-summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .toolbar {
   display: flex;
   justify-content: flex-end;
@@ -321,6 +329,11 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.intern-period {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .priority-pill,
@@ -598,10 +611,36 @@ p {
   font-size: 0.7rem;
 }
 
+.calendar-intern {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: var(--intern-color);
+  color: var(--intern-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.calendar-intern.is-pass {
+  box-shadow: inset 0 0 0 1px rgba(22, 128, 95, 0.18);
+}
+
+.calendar-intern.is-fail {
+  box-shadow: inset 0 0 0 1px rgba(194, 65, 65, 0.14);
+}
+
 .form-card {
   display: grid;
   gap: 12px;
   padding: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 label {
@@ -677,6 +716,22 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.task-modal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 36px));
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.task-modal .task-composer {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+}
+
 .confirm-backdrop {
   z-index: 70;
 }
@@ -730,6 +785,26 @@ textarea:focus {
   border-left: 6px solid var(--task-color);
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--task-color) 9%, #fff);
+}
+
+.day-intern-item {
+  display: grid;
+  gap: 6px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--intern-color);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--intern-color) 13%, #fff);
+}
+
+.day-intern-item h3 {
+  font-size: 1rem;
+}
+
+.day-intern-item p {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 .day-task-item h3 {
@@ -827,7 +902,8 @@ textarea:focus {
   .task-layout,
   .task-form-grid,
   .note-form-grid,
-  .note-filters {
+  .note-filters,
+  .task-summary {
     grid-template-columns: 1fr;
   }
 
@@ -838,6 +914,10 @@ textarea:focus {
   .calendar-day {
     min-height: 72px;
     padding: 6px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 }
 

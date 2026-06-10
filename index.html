@@ -74,40 +74,16 @@
         </section>
 
         <section id="tasksView" class="view">
-          <form id="taskForm" class="task-composer">
-            <div class="composer-head">
-              <div>
-                <p class="eyebrow">New Task</p>
-                <h3>タスクを追加</h3>
-              </div>
-              <button class="primary-button" type="submit">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
-                追加
-              </button>
+          <section class="summary-band task-summary">
+            <div>
+              <p class="eyebrow">Tasks</p>
+              <h3>締切とインターン期間を、カレンダーで重なりまで確認。</h3>
             </div>
-            <div class="task-form-grid">
-              <label>
-                企業名
-                <select name="companyId" id="taskCompanySelect" required></select>
-              </label>
-              <label>
-                タスク状況
-                <select name="type" id="taskTypeSelect" required></select>
-              </label>
-              <label>
-                日程
-                <input name="date" type="date" required>
-              </label>
-              <label>
-                時間/締切
-                <input name="time" type="time">
-              </label>
-              <label class="wide">
-                メモ
-                <input name="memo" placeholder="例: 10:00 Zoom / ES 400字 / 持ち物確認">
-              </label>
-            </div>
-          </form>
+            <button class="primary-button" type="button" id="openTaskForm">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+              タスクを追加
+            </button>
+          </section>
 
           <div class="task-layout">
             <section class="panel">
@@ -137,38 +113,16 @@
         </section>
 
         <section id="notesView" class="view">
-          <form id="noteForm" class="task-composer">
-            <input type="hidden" name="id">
-            <div class="composer-head">
-              <div>
-                <p class="eyebrow">ES / Interview Notes</p>
-                <h3 id="noteFormTitle">メモを追加</h3>
-              </div>
-              <button class="primary-button" type="submit">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
-                保存
-              </button>
+          <section class="summary-band task-summary">
+            <div>
+              <p class="eyebrow">ES / Interview Notes</p>
+              <h3>企業研究、ES材料、面接で話すことを企業ごとに整理。</h3>
             </div>
-            <div class="note-form-grid">
-              <label>
-                企業名
-                <select name="companyId" id="noteCompanySelect" required></select>
-              </label>
-              <label>
-                メモの種類
-                <select name="type" required>
-                  <option value="" disabled selected>種類を選択</option>
-                  <option value="research">企業研究</option>
-                  <option value="es">ES</option>
-                  <option value="interview">面接</option>
-                </select>
-              </label>
-              <label class="wide">
-                メモ
-                <textarea name="body" rows="7" required placeholder="企業研究メモ、ESで使う材料、面接で話すこと・聞かれた質問など"></textarea>
-              </label>
-            </div>
-          </form>
+            <button class="primary-button" type="button" id="openNoteForm">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+              メモを追加
+            </button>
+          </section>
 
           <section class="panel">
             <div class="section-head">
@@ -221,6 +175,16 @@
             個人ID
             <input name="personalId" placeholder="例: MY-2026-001">
           </label>
+          <div class="form-row">
+            <label>
+              インターン開始日
+              <input name="internStart" type="date">
+            </label>
+            <label>
+              インターン終了日
+              <input name="internEnd" type="date">
+            </label>
+          </div>
           <label>
             業界
             <select name="industry" id="industrySelect"></select>
@@ -277,6 +241,86 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
           この日でタスクを追加
         </button>
+      </section>
+    </div>
+    <div class="modal-backdrop" id="taskModal" aria-hidden="true">
+      <section class="task-modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+        <form id="taskForm" class="task-composer">
+          <div class="composer-head">
+            <div>
+              <p class="eyebrow">New Task</p>
+              <h2 id="taskModalTitle">タスクを追加</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeTaskModal" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"></path></svg>
+            </button>
+          </div>
+          <div class="task-form-grid">
+            <label>
+              企業名
+              <select name="companyId" id="taskCompanySelect" required></select>
+            </label>
+            <label>
+              タスク状況
+              <select name="type" id="taskTypeSelect" required></select>
+            </label>
+            <label>
+              日程
+              <input name="date" type="date" required>
+            </label>
+            <label>
+              時間/締切
+              <input name="time" type="time">
+            </label>
+            <label class="wide">
+              メモ
+              <input name="memo" placeholder="例: 10:00 Zoom / ES 400字 / 持ち物確認">
+            </label>
+          </div>
+          <button class="primary-button full" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+            追加する
+          </button>
+        </form>
+      </section>
+    </div>
+    <div class="modal-backdrop" id="noteModal" aria-hidden="true">
+      <section class="task-modal" role="dialog" aria-modal="true" aria-labelledby="noteFormTitle">
+        <form id="noteForm" class="task-composer">
+          <input type="hidden" name="id">
+          <div class="composer-head">
+            <div>
+              <p class="eyebrow">ES / Interview Notes</p>
+              <h2 id="noteFormTitle">メモを追加</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeNoteModal" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"></path></svg>
+            </button>
+          </div>
+          <div class="note-form-grid">
+            <label>
+              企業名
+              <select name="companyId" id="noteCompanySelect" required></select>
+            </label>
+            <label>
+              メモの種類
+              <select name="type" required>
+                <option value="" disabled selected>種類を選択</option>
+                <option value="research">企業研究</option>
+                <option value="es">ES</option>
+                <option value="interview">面接</option>
+              </select>
+            </label>
+            <label class="wide">
+              メモ
+              <textarea name="body" rows="7" required placeholder="企業研究メモ、ESで使う材料、面接で話すこと・聞かれた質問など"></textarea>
+            </label>
+          </div>
+          <button class="primary-button full" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+            保存する
+          </button>
+        </form>
       </section>
     </div>
     <div class="modal-backdrop confirm-backdrop" id="confirmModal" aria-hidden="true">
