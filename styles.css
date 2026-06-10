@@ -377,7 +377,7 @@ p {
 
 .task-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -532,6 +532,67 @@ textarea:focus {
   border-radius: var(--radius);
   color: var(--muted);
   text-align: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  place-items: center;
+  padding: 18px;
+  background: rgba(23, 33, 43, 0.32);
+}
+
+.modal-backdrop.is-open {
+  display: grid;
+}
+
+.day-modal {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 36px));
+  display: grid;
+  gap: 14px;
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.day-modal h2 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.day-task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.day-task-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--task-color);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--task-color) 9%, #fff);
+}
+
+.day-task-item h3 {
+  margin-top: 5px;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.day-task-item p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 .toast {

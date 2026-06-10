@@ -34,7 +34,7 @@ const industries = [
 const demoState = {
   activeView: "companies",
   search: "",
-  calendarMonth: new Date().toISOString().slice(0, 7),
+  calendarMonth: localMonthValue(new Date()),
   companies: [
     {
       id: "c1",
@@ -62,10 +62,10 @@ const demoState = {
     }
   ],
   tasks: [
-    { id: "t1", companyId: "c1", type: "first", date: offsetDate(2), memo: "10:00 Zoom。逆質問を3つ用意", done: false },
-    { id: "t2", companyId: "c2", type: "es", date: offsetDate(1), memo: "学生時代に力を入れたこと 400字", done: false },
-    { id: "t3", companyId: "c3", type: "webtest", date: offsetDate(4), memo: "SPI。性格検査も忘れない", done: false },
-    { id: "t4", companyId: "c1", type: "briefing", date: offsetDate(10), memo: "社員座談会", done: false }
+    { id: "t1", companyId: "c1", type: "first", date: offsetDate(2), time: "10:00", memo: "Zoom。逆質問を3つ用意", done: false },
+    { id: "t2", companyId: "c2", type: "es", date: offsetDate(1), time: "23:59", memo: "学生時代に力を入れたこと 400字", done: false },
+    { id: "t3", companyId: "c3", type: "webtest", date: offsetDate(4), time: "", memo: "SPI。性格検査も忘れない", done: false },
+    { id: "t4", companyId: "c1", type: "briefing", date: offsetDate(10), time: "18:00", memo: "社員座談会", done: false }
   ]
 };
 
@@ -85,12 +85,30 @@ const calendarTitle = document.querySelector("#calendarTitle");
 const calendarGrid = document.querySelector("#calendarGrid");
 const drawer = document.querySelector("#drawer");
 const toast = document.querySelector("#toast");
+const dayModal = document.querySelector("#dayModal");
+const dayModalTitle = document.querySelector("#dayModalTitle");
+const dayTaskList = document.querySelector("#dayTaskList");
+const useDayForTask = document.querySelector("#useDayForTask");
+let selectedCalendarDate = offsetDate(0);
 
 function offsetDate(days) {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return localDateValue(date);
+}
+
+function localDateValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localMonthValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
 }
 
 function loadState() {
@@ -159,7 +177,7 @@ function weekTasks() {
       const days = daysUntil(task.date);
       return days >= 0 && days <= 7;
     })
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "99:99").localeCompare(b.time || "99:99"));
 }
 
 function render() {
@@ -177,11 +195,11 @@ function renderIndustryOptions() {
 }
 
 function renderCompanySelects() {
-  taskCompanySelect.innerHTML = state.companies
+  taskCompanySelect.innerHTML = `<option value="" disabled selected>企業を選択</option>` + state.companies
     .sort((a, b) => Number(b.priority) - Number(a.priority))
     .map((company) => `<option value="${company.id}">${escapeHtml(company.name)}</option>`)
     .join("");
-  taskTypeSelect.innerHTML = taskTypes
+  taskTypeSelect.innerHTML = `<option value="" disabled selected>タスク状況を選択</option>` + taskTypes
     .map((type) => `<option value="${type.id}">${type.label}</option>`)
     .join("");
 }
@@ -225,7 +243,7 @@ function taskRow(task) {
             <span class="task-type-pill">${type.label}</span>
             <h4>${escapeHtml(company?.name || "企業未設定")}</h4>
           </div>
-          <span class="date-pill">${formatDate(task.date)} / ${dateDistance(task.date)}</span>
+          <span class="date-pill">${formatDate(task.date)}${task.time ? ` ${escapeHtml(task.time)}` : ""} / ${dateDistance(task.date)}</span>
         </header>
         <p>${escapeHtml(task.memo || "メモなし")}</p>
       </div>
@@ -244,7 +262,7 @@ function renderCalendar() {
   for (let i = 0; i < 42; i += 1) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
-    const value = date.toISOString().slice(0, 10);
+    const value = localDateValue(date);
     const tasks = state.tasks.filter((task) => !task.done && task.date === value);
     const isCurrentMonth = date.getMonth() === month - 1;
     const isToday = value === offsetDate(0);
@@ -253,12 +271,44 @@ function renderCalendar() {
         <strong>${date.getDate()}</strong>
         ${tasks.slice(0, 3).map((task) => {
           const type = taskTypeById(task.type);
-          return `<span class="calendar-task" style="--task-color:${type.color}">${type.label}</span>`;
+          return `<span class="calendar-task" style="--task-color:${type.color}">${task.time ? `${escapeHtml(task.time)} ` : ""}${type.label}</span>`;
         }).join("")}
       </button>
     `);
   }
   calendarGrid.innerHTML = cells.join("");
+}
+
+function openDayModal(date) {
+  selectedCalendarDate = date;
+  dayModalTitle.textContent = `${formatDate(date)} のタスク`;
+  const tasks = state.tasks
+    .filter((task) => !task.done && task.date === date)
+    .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99") || taskTypeById(a.type).label.localeCompare(taskTypeById(b.type).label, "ja"));
+
+  dayTaskList.innerHTML = tasks.length ? tasks.map((task) => {
+    const company = companyById(task.companyId);
+    const type = taskTypeById(task.type);
+    return `
+      <article class="day-task-item" style="--task-color:${type.color}">
+        <button class="task-check" type="button" data-complete-task="${task.id}" aria-label="完了にする"></button>
+        <div>
+          <span class="task-type-pill">${type.label}</span>
+          <h3>${escapeHtml(company?.name || "企業未設定")}</h3>
+          <span class="date-pill">${task.time ? `${escapeHtml(task.time)} 締切` : "時間未設定"}</span>
+          <p>${escapeHtml(task.memo || "メモなし")}</p>
+        </div>
+      </article>
+    `;
+  }).join("") : emptyState("この日の未完了タスクはありません。");
+
+  dayModal.classList.add("is-open");
+  dayModal.setAttribute("aria-hidden", "false");
+}
+
+function closeDayModal() {
+  dayModal.classList.remove("is-open");
+  dayModal.setAttribute("aria-hidden", "true");
 }
 
 function linkButton(url, label) {
@@ -332,7 +382,7 @@ function closeDrawer() {
 function shiftMonth(amount) {
   const [year, month] = state.calendarMonth.split("-").map(Number);
   const next = new Date(year, month - 1 + amount, 1);
-  state.calendarMonth = next.toISOString().slice(0, 7);
+  state.calendarMonth = localMonthValue(next);
   saveState();
   renderCalendar();
 }
@@ -350,6 +400,8 @@ document.addEventListener("click", (event) => {
     setView("tasks");
     taskForm.elements.companyId.value = createTask.dataset.createTask;
     taskForm.elements.date.value = offsetDate(1);
+    taskForm.elements.type.value = "";
+    taskForm.elements.time.value = "";
     taskForm.elements.memo.focus();
   }
   if (completeTask) {
@@ -358,13 +410,12 @@ document.addEventListener("click", (event) => {
       task.done = true;
       saveState();
       render();
+      if (dayModal.classList.contains("is-open")) openDayModal(selectedCalendarDate);
       showToast("タスクを完了しました");
     }
   }
   if (pickDate) {
-    taskForm.elements.date.value = pickDate.dataset.pickDate;
-    setView("tasks");
-    taskForm.elements.memo.focus();
+    openDayModal(pickDate.dataset.pickDate);
   }
 });
 
@@ -372,6 +423,16 @@ document.querySelector("#openCompanyForm").addEventListener("click", () => openD
 document.querySelector("#closeDrawer").addEventListener("click", closeDrawer);
 document.querySelector("#prevMonth").addEventListener("click", () => shiftMonth(-1));
 document.querySelector("#nextMonth").addEventListener("click", () => shiftMonth(1));
+document.querySelector("#closeDayModal").addEventListener("click", closeDayModal);
+useDayForTask.addEventListener("click", () => {
+  taskForm.elements.date.value = selectedCalendarDate;
+  closeDayModal();
+  setView("tasks");
+  taskForm.elements.memo.focus();
+});
+dayModal.addEventListener("click", (event) => {
+  if (event.target === dayModal) closeDayModal();
+});
 
 document.querySelector("#resetDemo").addEventListener("click", () => {
   state = structuredClone(demoState);
@@ -412,16 +473,27 @@ companyForm.addEventListener("submit", (event) => {
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(taskForm);
+  const companyId = data.get("companyId");
+  const type = data.get("type");
+  const date = data.get("date");
+  if (!companyId || !type || !date) {
+    showToast("企業名、タスク状況、日程を選んでください");
+    return;
+  }
   state.tasks.push({
     id: crypto.randomUUID(),
-    companyId: data.get("companyId"),
-    type: data.get("type"),
-    date: data.get("date"),
+    companyId,
+    type,
+    date,
+    time: data.get("time"),
     memo: data.get("memo").trim(),
     done: false
   });
   saveState();
   render();
+  taskForm.elements.companyId.value = "";
+  taskForm.elements.type.value = "";
+  taskForm.elements.time.value = "";
   taskForm.elements.memo.value = "";
   showToast("タスクを追加しました");
 });

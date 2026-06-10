@@ -74,15 +74,19 @@
             <div class="task-form-grid">
               <label>
                 企業名
-                <select name="companyId" id="taskCompanySelect"></select>
+                <select name="companyId" id="taskCompanySelect" required></select>
               </label>
               <label>
                 タスク状況
-                <select name="type" id="taskTypeSelect"></select>
+                <select name="type" id="taskTypeSelect" required></select>
               </label>
               <label>
                 日程
                 <input name="date" type="date" required>
+              </label>
+              <label>
+                時間/締切
+                <input name="time" type="time">
               </label>
               <label class="wide">
                 メモ
@@ -161,6 +165,24 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div class="modal-backdrop" id="dayModal" aria-hidden="true">
+      <section class="day-modal" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Calendar Tasks</p>
+            <h2 id="dayModalTitle">日付のタスク</h2>
+          </div>
+          <button class="icon-button" type="button" id="closeDayModal" aria-label="閉じる">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"></path></svg>
+          </button>
+        </div>
+        <div id="dayTaskList" class="day-task-list"></div>
+        <button class="primary-button full" type="button" id="useDayForTask">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+          この日でタスクを追加
+        </button>
+      </section>
+    </div>
     <script src="./app.js"></script>
   </body>
 </html>
