@@ -1,13 +1,13 @@
 const storageKey = "careerboard-state-v2";
 
 const taskTypes = [
-  { id: "briefing", label: "説明会", color: "#cde7ff" },
-  { id: "es", label: "ES締切", color: "#ffe0e6" },
-  { id: "webtest", label: "WEBテスト", color: "#d9f5df" },
-  { id: "testcenter", label: "テストセンター", color: "#fff0c7" },
-  { id: "interview", label: "面接", color: "#e3ddff" },
-  { id: "final", label: "最終面接", color: "#ffd6d1" },
-  { id: "gd", label: "グループディスカッション", color: "#e8edf3" }
+  { id: "briefing", label: "説明会", color: "#cfe0ff" },
+  { id: "es", label: "ES締切", color: "#f6d9a8" },
+  { id: "webtest", label: "WEBテスト", color: "#c9ead4" },
+  { id: "testcenter", label: "テストセンター", color: "#e7d3a1" },
+  { id: "interview", label: "面接", color: "#d7e0b8" },
+  { id: "final", label: "最終面接", color: "#f3c0a9" },
+  { id: "gd", label: "グループディスカッション", color: "#c9d7e8" }
 ];
 
 const industries = [
@@ -30,10 +30,13 @@ const industries = [
 ];
 
 const demoState = {
-  activeView: "companies",
+  activeView: "tasks",
   search: "",
+  taskSearch: "",
   companySort: "priority",
+  calendarView: "month",
   calendarMonth: localMonthValue(new Date()),
+  calendarWeekStart: offsetDate(0),
   companies: [
     {
       id: "c1",
@@ -96,8 +99,11 @@ const companyGrid = document.querySelector("#companyGrid");
 const companySearch = document.querySelector("#companySearch");
 const companySort = document.querySelector("#companySort");
 const companyForm = document.querySelector("#companyForm");
+const selectionFields = document.querySelector("#selectionFields");
+const toggleSelectionFields = document.querySelector("#toggleSelectionFields");
 const industrySelect = document.querySelector("#industrySelect");
 const taskForm = document.querySelector("#taskForm");
+const taskSearch = document.querySelector("#taskSearch");
 const taskCompanySelect = document.querySelector("#taskCompanySelect");
 const taskTypeSelect = document.querySelector("#taskTypeSelect");
 const noteForm = document.querySelector("#noteForm");
@@ -112,7 +118,8 @@ const weekTaskCount = document.querySelector("#weekTaskCount");
 const weekTaskList = document.querySelector("#weekTaskList");
 const calendarTitle = document.querySelector("#calendarTitle");
 const calendarGrid = document.querySelector("#calendarGrid");
-const drawer = document.querySelector("#drawer");
+const calendarViewButtons = document.querySelectorAll("[data-calendar-view]");
+const companyModal = document.querySelector("#companyModal");
 const toast = document.querySelector("#toast");
 const dayModal = document.querySelector("#dayModal");
 const dayModalTitle = document.querySelector("#dayModalTitle");
@@ -162,6 +169,14 @@ function loadState() {
 
 function migrateState(nextState) {
   nextState.companySort ||= "priority";
+  nextState.taskSearch ||= "";
+  nextState.calendarView ||= "month";
+  if (!["month", "week"].includes(nextState.calendarView)) nextState.calendarView = "month";
+  nextState.calendarWeekStart ||= offsetDate(0);
+  if (!nextState.tasksFirstReady) {
+    nextState.activeView = "tasks";
+    nextState.tasksFirstReady = true;
+  }
   nextState.notes ||= [];
   nextState.companies = (nextState.companies || []).map((company) => ({
     personalId: "",
@@ -241,11 +256,23 @@ function sortCompanies(a, b) {
 function weekTasks() {
   return state.tasks
     .filter((task) => !task.done)
+    .filter(matchesTaskSearch)
     .filter((task) => {
       const days = daysUntil(task.date);
       return days >= 0 && days <= 7;
     })
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "99:99").localeCompare(b.time || "99:99"));
+}
+
+function matchesTaskSearch(task) {
+  const query = state.taskSearch.trim().toLowerCase();
+  if (!query) return true;
+  const company = companyById(task.companyId);
+  const type = taskTypeById(task.type);
+  return [company?.name, company?.industry, type.label, task.memo, task.date, task.time]
+    .join(" ")
+    .toLowerCase()
+    .includes(query);
 }
 
 function render() {
@@ -265,11 +292,11 @@ function renderIndustryOptions() {
 }
 
 function renderCompanySelects() {
-  taskCompanySelect.innerHTML = `<option value="" disabled selected>企業を選択</option>` + state.companies
+  taskCompanySelect.innerHTML = `<option value="" disabled selected>企業</option>` + state.companies
     .sort((a, b) => Number(b.priority) - Number(a.priority))
     .map((company) => `<option value="${company.id}">${escapeHtml(company.name)}</option>`)
     .join("");
-  taskTypeSelect.innerHTML = `<option value="" disabled selected>タスク状況を選択</option>` + taskTypes
+  taskTypeSelect.innerHTML = `<option value="" disabled selected>種類</option>` + taskTypes
     .map((type) => `<option value="${type.id}">${type.label}</option>`)
     .join("");
   taskCompanySelect.value = "";
@@ -281,7 +308,7 @@ function renderNoteCompanySelect() {
     .sort((a, b) => Number(b.priority) - Number(a.priority))
     .map((company) => `<option value="${company.id}">${escapeHtml(company.name)}</option>`)
     .join("");
-  noteCompanySelect.innerHTML = `<option value="" disabled selected>企業を選択</option>` + options;
+  noteCompanySelect.innerHTML = `<option value="" disabled selected>企業</option>` + options;
   noteFilterCompany.innerHTML = `<option value="all">すべて</option>` + options;
   noteCompanySelect.value = "";
 }
@@ -289,7 +316,7 @@ function renderNoteCompanySelect() {
 function renderCompanies() {
   const companies = filteredCompanies();
   companyGrid.innerHTML = companies.length ? companies.map((company) => `
-    <article class="company-card">
+    <article class="company-card" id="company-${company.id}">
       <header>
         <div>
           <h3>${escapeHtml(company.name)}</h3>
@@ -304,11 +331,11 @@ function renderCompanies() {
       ${internPeriodText(company)}
       <p>${escapeHtml(company.memo || "メモなし")}</p>
       <div class="card-actions">
-        ${company.mypageUrl ? linkButton(company.mypageUrl, "マイページ") : `<button class="small-button" type="button" data-edit-company="${company.id}">URL設定</button>`}
-        ${company.personalId ? `<button class="small-button" type="button" data-copy-personal-id="${company.id}">個人ID</button>` : `<button class="small-button" type="button" data-edit-company="${company.id}">個人ID設定</button>`}
-        <button class="small-button" type="button" data-edit-company="${company.id}">編集</button>
-        <button class="small-button" type="button" data-create-task="${company.id}">タスク追加</button>
-        <button class="small-button" type="button" data-note-company="${company.id}">メモ欄</button>
+        ${company.mypageUrl ? linkButton(company.mypageUrl, "URL", "external") : actionButton("URL", "link", `data-edit-company="${company.id}"`)}
+        ${company.personalId ? actionButton("ID", "id", `data-copy-personal-id="${company.id}"`) : actionButton("ID", "id", `data-edit-company="${company.id}"`)}
+        ${actionButton("編集", "edit", `data-edit-company="${company.id}"`)}
+        ${actionButton("予定", "calendar", `data-create-task="${company.id}"`)}
+        ${actionButton("メモ", "note", `data-note-company="${company.id}"`)}
       </div>
       ${latestNotePreview(company.id)}
     </article>
@@ -317,8 +344,8 @@ function renderCompanies() {
 
 function resultPill(kind, value = "none") {
   const labels = {
-    intern: { none: "インターン未設定", pass: "インターン合格", fail: "インターン不合格" },
-    main: { none: "本選考未設定", pass: "本選考合格", fail: "本選考不合格" }
+    intern: { none: "IS -", pass: "IS 合格", fail: "IS 不合格" },
+    main: { none: "本選考 -", pass: "本選考 合格", fail: "本選考 不合格" }
   };
   const className = value === "pass" ? "is-pass" : value === "fail" ? "is-fail" : "";
   return `<span class="result-pill ${className}">${labels[kind][value || "none"]}</span>`;
@@ -395,7 +422,7 @@ function noteTypeLabel(type) {
 function renderWeekTasks() {
   const tasks = weekTasks();
   weekTaskCount.textContent = `${tasks.length}件`;
-  weekTaskList.innerHTML = tasks.length ? tasks.map((task) => taskRow(task)).join("") : emptyState("直近1週間の未完了タスクはありません。");
+  weekTaskList.innerHTML = tasks.length ? tasks.map((task) => taskRow(task)).join("") : emptyState("なし");
 }
 
 function taskRow(task) {
@@ -408,7 +435,7 @@ function taskRow(task) {
         <header>
           <div>
             <span class="task-type-pill">${type.label}</span>
-            <h4>${escapeHtml(company?.name || "企業未設定")}</h4>
+            ${companyNameButton(company)}
           </div>
           <span class="date-pill">${formatDate(task.date)}${task.time ? ` ${escapeHtml(task.time)}` : ""} / ${dateDistance(task.date)}</span>
         </header>
@@ -419,20 +446,28 @@ function taskRow(task) {
 }
 
 function renderCalendar() {
+  const isWeekView = state.calendarView === "week";
   const [year, month] = state.calendarMonth.split("-").map(Number);
   const firstDay = new Date(year, month - 1, 1);
-  const start = new Date(firstDay);
-  start.setDate(firstDay.getDate() - firstDay.getDay());
-  calendarTitle.textContent = `${year}年 ${month}月`;
+  const start = isWeekView ? new Date(`${state.calendarWeekStart}T00:00:00`) : new Date(firstDay);
+  if (!isWeekView) start.setDate(firstDay.getDate() - firstDay.getDay());
+  const dayCount = isWeekView ? 7 : 42;
+  const end = new Date(start);
+  end.setDate(start.getDate() + dayCount - 1);
+  calendarTitle.textContent = isWeekView ? `${formatDate(localDateValue(start))} - ${formatDate(localDateValue(end))}` : `${year}年 ${month}月`;
+  calendarGrid.classList.toggle("is-week-view", isWeekView);
+  calendarViewButtons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.calendarView === state.calendarView);
+  });
 
   const cells = [];
-  for (let i = 0; i < 42; i += 1) {
+  for (let i = 0; i < dayCount; i += 1) {
     const date = new Date(start);
     date.setDate(start.getDate() + i);
     const value = localDateValue(date);
-    const tasks = state.tasks.filter((task) => !task.done && task.date === value);
-    const interns = state.companies.filter((company) => isInternDay(company, value));
-    const isCurrentMonth = date.getMonth() === month - 1;
+    const tasks = state.tasks.filter((task) => !task.done && task.date === value && matchesTaskSearch(task));
+    const interns = state.companies.filter((company) => isInternDay(company, value) && matchesInternSearch(company));
+    const isCurrentMonth = isWeekView || date.getMonth() === month - 1;
     const isToday = value === offsetDate(0);
     cells.push(`
       <button class="calendar-day ${isCurrentMonth ? "" : "is-muted"} ${isToday ? "is-today" : ""}" type="button" data-pick-date="${value}">
@@ -454,14 +489,23 @@ function internCalendarChip(company) {
   return `<span class="calendar-intern ${tone}" style="${internStyle(company)}">インターン ${escapeHtml(company.name)}</span>`;
 }
 
+function matchesInternSearch(company) {
+  const query = state.taskSearch.trim().toLowerCase();
+  if (!query) return true;
+  return [company.name, company.industry, company.memo, "インターン", "is"]
+    .join(" ")
+    .toLowerCase()
+    .includes(query);
+}
+
 function openDayModal(date) {
   selectedCalendarDate = date;
-  dayModalTitle.textContent = `${formatDate(date)} のタスク`;
+  dayModalTitle.textContent = formatDate(date);
   const tasks = state.tasks
-    .filter((task) => !task.done && task.date === date)
+    .filter((task) => !task.done && task.date === date && matchesTaskSearch(task))
     .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99") || taskTypeById(a.type).label.localeCompare(taskTypeById(b.type).label, "ja"));
   const interns = state.companies
-    .filter((company) => isInternDay(company, date))
+    .filter((company) => isInternDay(company, date) && matchesInternSearch(company))
     .sort((a, b) => internToneOrder(a) - internToneOrder(b) || a.name.localeCompare(b.name, "ja"));
 
   const taskItems = tasks.map((task) => {
@@ -472,7 +516,7 @@ function openDayModal(date) {
         <button class="task-check" type="button" data-complete-task="${task.id}" aria-label="完了にする"></button>
         <div>
           <span class="task-type-pill">${type.label}</span>
-          <h3>${escapeHtml(company?.name || "企業未設定")}</h3>
+          ${companyNameButton(company, "h3")}
           <span class="date-pill">${task.time ? `${escapeHtml(task.time)} 締切` : "時間未設定"}</span>
           <p>${escapeHtml(task.memo || "メモなし")}</p>
         </div>
@@ -482,12 +526,12 @@ function openDayModal(date) {
   const internItems = interns.map((company) => `
     <article class="day-intern-item" style="${internStyle(company)}">
       <span class="task-type-pill" style="--task-color: var(--intern-color)">インターン期間</span>
-      <h3>${escapeHtml(company.name)}</h3>
+      ${companyNameButton(company, "h3")}
       <p>${formatDate(company.internStart)} - ${formatDate(company.internEnd)} / ${internResultLabel(company.internResult)}</p>
     </article>
   `).join("");
 
-  dayTaskList.innerHTML = taskItems + internItems || emptyState("この日の未完了タスクとインターン期間はありません。");
+  dayTaskList.innerHTML = taskItems + internItems || emptyState("なし");
 
   dayModal.classList.add("is-open");
   dayModal.setAttribute("aria-hidden", "false");
@@ -496,6 +540,11 @@ function openDayModal(date) {
 function closeDayModal() {
   dayModal.classList.remove("is-open");
   dayModal.setAttribute("aria-hidden", "true");
+}
+
+function companyNameButton(company, tag = "h4") {
+  if (!company) return `<${tag}>企業未設定</${tag}>`;
+  return `<${tag}><button class="company-jump" type="button" data-open-company="${company.id}">${escapeHtml(company.name)}</button></${tag}>`;
 }
 
 function openTaskModal({ companyId = "", date = offsetDate(1) } = {}) {
@@ -521,7 +570,7 @@ function openNoteModal({ companyId = "", noteId = "" } = {}) {
     noteForm.elements.companyId.value = note.companyId;
     noteForm.elements.type.value = note.type;
     noteForm.elements.body.value = note.body;
-    noteFormTitle.textContent = "メモを編集";
+    noteFormTitle.textContent = "編集";
   } else {
     resetNoteForm();
     noteForm.elements.companyId.value = companyId;
@@ -544,11 +593,11 @@ function openConfirmModal(taskId) {
   const type = task ? taskTypeById(task.type) : null;
   pendingCompleteTaskId = taskId;
   pendingDeleteNoteId = "";
-  confirmModalTitle.textContent = "タスクを完了にしますか？";
+  confirmModalTitle.textContent = "完了？";
   confirmTaskText.textContent = task
-    ? `${company?.name || "企業未設定"} / ${type?.label || "タスク"} を完了にします。`
-    : "このタスクを完了にします。";
-  confirmCompleteTask.textContent = "完了にする";
+    ? `${company?.name || "企業未設定"} / ${type?.label || "予定"}`
+    : "この予定";
+  confirmCompleteTask.textContent = "完了";
   confirmModal.classList.add("is-open");
   confirmModal.setAttribute("aria-hidden", "false");
 }
@@ -558,11 +607,11 @@ function openDeleteNoteConfirm(noteId) {
   const company = note ? companyById(note.companyId) : null;
   pendingDeleteNoteId = noteId;
   pendingCompleteTaskId = "";
-  confirmModalTitle.textContent = "メモを削除しますか？";
+  confirmModalTitle.textContent = "削除？";
   confirmTaskText.textContent = note
-    ? `${company?.name || "企業未設定"} / ${noteTypeLabel(note.type)} のメモを削除します。`
-    : "このメモを削除します。";
-  confirmCompleteTask.textContent = "削除する";
+    ? `${company?.name || "企業未設定"} / ${noteTypeLabel(note.type)}`
+    : "このメモ";
+  confirmCompleteTask.textContent = "削除";
   confirmModal.classList.add("is-open");
   confirmModal.setAttribute("aria-hidden", "false");
 }
@@ -601,10 +650,26 @@ function completePendingTask() {
   showToast("タスクを完了しました");
 }
 
-function linkButton(url, label) {
+function iconSvg(name) {
+  const paths = {
+    external: "M14 5h5v5h-2V8.4l-6.3 6.3-1.4-1.4L15.6 7H14V5ZM5 7h6v2H7v8h8v-4h2v6H5V7Z",
+    link: "M10.6 13.4a1 1 0 0 1 0-1.4l3.5-3.5a3 3 0 1 1 4.2 4.2l-2 2-1.4-1.4 2-2a1 1 0 1 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0ZM8.5 15.5a1 1 0 0 0 1.4 0l3.5-3.5a1 1 0 0 0-1.4-1.4l-3.5 3.5a1 1 0 1 1-1.4-1.4l2-2-1.4-1.4-2 2a3 3 0 1 0 4.2 4.2Z",
+    id: "M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h4v2H8V9Zm0 4h8v2H8v-2Z",
+    edit: "M5 17.6 16.6 6 18 7.4 6.4 19H5v-1.4ZM17.3 3.9a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1l-.7.7L16.6 4.6l.7-.7Z",
+    calendar: "M7 3h2v2h6V3h2v2h3v16H4V5h3V3Zm11 8H6v8h12v-8ZM6 9h12V7H6v2Z",
+    note: "M5 3h14v18H5V3Zm2 2v14h10V5H7Zm2 4h6v2H9V9Zm0 4h6v2H9v-2Z"
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name]}"></path></svg>`;
+}
+
+function actionButton(label, icon, attrs) {
+  return `<button class="small-button" type="button" ${attrs}>${iconSvg(icon)}<span>${label}</span></button>`;
+}
+
+function linkButton(url, label, icon = "external") {
   return `<a class="small-button" href="${escapeAttribute(url)}" target="_blank" rel="noreferrer">
+    ${iconSvg(icon)}
     ${label}
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5h5v5h-2V8.4l-6.3 6.3-1.4-1.4L15.6 7H14V5ZM5 7h6v2H7v8h8v-4h2v6H5V7Z"></path></svg>
   </a>`;
 }
 
@@ -643,7 +708,7 @@ async function copyToClipboard(text) {
     } else {
       fallbackCopyToClipboard(text);
     }
-    showToast("個人IDをコピーしました");
+    showToast("IDコピー");
   } catch {
     showToast("コピーできませんでした");
   }
@@ -671,11 +736,12 @@ function setView(view) {
   document.querySelectorAll(".view").forEach((panel) => {
     panel.classList.toggle("is-visible", panel.id === `${view}View`);
   });
-  viewTitle.textContent = { companies: "企業一覧", tasks: "タスク一覧", notes: "ES/面接メモ" }[view] || "企業一覧";
+  document.body.dataset.view = view;
+  viewTitle.textContent = { companies: "企業", tasks: "予定", notes: "メモ" }[view] || "企業";
   topActions.hidden = view !== "companies";
 }
 
-function openDrawer(company) {
+function openCompanyModal(company) {
   companyForm.elements.id.value = company?.id || "";
   companyForm.elements.name.value = company?.name || "";
   companyForm.elements.mypageUrl.value = company?.mypageUrl || "";
@@ -687,7 +753,10 @@ function openDrawer(company) {
   companyForm.elements.internResult.value = company?.internResult || "none";
   companyForm.elements.mainResult.value = company?.mainResult || "none";
   companyForm.elements.memo.value = company?.memo || "";
-  drawer.classList.add("is-open");
+  setSelectionFieldsOpen(hasSelectionDetails(company));
+  companyModal.classList.add("is-open");
+  companyModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => companyForm.elements.name.focus(), 0);
 }
 
 function normalizeIndustry(value) {
@@ -701,8 +770,23 @@ function normalizeIndustry(value) {
   return "その他";
 }
 
-function closeDrawer() {
-  drawer.classList.remove("is-open");
+function closeCompanyModal() {
+  companyModal.classList.remove("is-open");
+  companyModal.setAttribute("aria-hidden", "true");
+}
+
+function setSelectionFieldsOpen(isOpen) {
+  selectionFields.hidden = !isOpen;
+  toggleSelectionFields.setAttribute("aria-expanded", String(isOpen));
+}
+
+function hasSelectionDetails(company) {
+  return Boolean(
+    company?.internStart ||
+    company?.internEnd ||
+    (company?.internResult && company.internResult !== "none") ||
+    (company?.mainResult && company.mainResult !== "none")
+  );
 }
 
 function resetTaskForm(date = offsetDate(1)) {
@@ -746,15 +830,39 @@ function resetNoteForm() {
   noteForm.elements.companyId.value = "";
   noteForm.elements.type.value = "";
   noteForm.elements.body.value = "";
-  noteFormTitle.textContent = "メモを追加";
+  noteFormTitle.textContent = "メモ";
 }
 
 function shiftMonth(amount) {
-  const [year, month] = state.calendarMonth.split("-").map(Number);
-  const next = new Date(year, month - 1 + amount, 1);
-  state.calendarMonth = localMonthValue(next);
+  if (state.calendarView === "week") {
+    const next = new Date(`${state.calendarWeekStart}T00:00:00`);
+    next.setDate(next.getDate() + amount * 7);
+    state.calendarWeekStart = localDateValue(next);
+  } else {
+    const [year, month] = state.calendarMonth.split("-").map(Number);
+    const next = new Date(year, month - 1 + amount, 1);
+    state.calendarMonth = localMonthValue(next);
+  }
   saveState();
   renderCalendar();
+}
+
+function jumpToCompany(companyId) {
+  const company = companyById(companyId);
+  if (!company) return;
+  closeDayModal();
+  setView("companies");
+  state.search = "";
+  companySearch.value = "";
+  saveState();
+  renderCompanies();
+  window.setTimeout(() => {
+    const card = document.querySelector(`#company-${CSS.escape(companyId)}`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("is-focus");
+    window.setTimeout(() => card.classList.remove("is-focus"), 1400);
+  }, 0);
 }
 
 document.addEventListener("click", (event) => {
@@ -774,12 +882,13 @@ document.addEventListener("click", (event) => {
   const deleteNote = event.target.closest("[data-delete-note]");
   const copyPersonalId = event.target.closest("[data-copy-personal-id]");
   const completeTask = event.target.closest("[data-complete-task]");
+  const openCompany = event.target.closest("[data-open-company]");
 
   if (nav) {
     setView(nav.dataset.view);
     if (nav.dataset.view === "notes") renderNotes();
   }
-  if (editCompany) openDrawer(companyById(editCompany.dataset.editCompany));
+  if (editCompany) openCompanyModal(companyById(editCompany.dataset.editCompany));
   if (copyPersonalId) {
     const company = companyById(copyPersonalId.dataset.copyPersonalId);
     if (company?.personalId) copyToClipboard(company.personalId);
@@ -806,16 +915,30 @@ document.addEventListener("click", (event) => {
   if (completeTask) {
     openConfirmModal(completeTask.dataset.completeTask);
   }
+  if (openCompany) {
+    jumpToCompany(openCompany.dataset.openCompany);
+  }
 });
 
-document.querySelector("#openCompanyForm").addEventListener("click", () => openDrawer());
-document.querySelector("#closeDrawer").addEventListener("click", closeDrawer);
+document.querySelector("#openCompanyForm").addEventListener("click", () => openCompanyModal());
+document.querySelector("#closeCompanyModal").addEventListener("click", closeCompanyModal);
+toggleSelectionFields.addEventListener("click", () => {
+  setSelectionFieldsOpen(selectionFields.hidden);
+});
 openTaskForm.addEventListener("click", () => openTaskModal());
 document.querySelector("#closeTaskModal").addEventListener("click", closeTaskModal);
 openNoteForm.addEventListener("click", () => openNoteModal());
 document.querySelector("#closeNoteModal").addEventListener("click", closeNoteModal);
 document.querySelector("#prevMonth").addEventListener("click", () => shiftMonth(-1));
 document.querySelector("#nextMonth").addEventListener("click", () => shiftMonth(1));
+calendarViewButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    state.calendarView = button.dataset.calendarView;
+    if (state.calendarView === "week" && !state.calendarWeekStart) state.calendarWeekStart = offsetDate(0);
+    saveState();
+    renderCalendar();
+  });
+});
 document.querySelector("#closeDayModal").addEventListener("click", closeDayModal);
 useDayForTask.addEventListener("click", () => {
   closeDayModal();
@@ -824,6 +947,9 @@ useDayForTask.addEventListener("click", () => {
 });
 taskModal.addEventListener("click", (event) => {
   if (event.target === taskModal) closeTaskModal();
+});
+companyModal.addEventListener("click", (event) => {
+  if (event.target === companyModal) closeCompanyModal();
 });
 noteModal.addEventListener("click", (event) => {
   if (event.target === noteModal) closeNoteModal();
@@ -840,11 +966,12 @@ confirmModal.addEventListener("click", (event) => {
 document.querySelector("#resetDemo").addEventListener("click", () => {
   state = migrateState(structuredClone(demoState));
   companySearch.value = "";
+  taskSearch.value = "";
   companySort.value = state.companySort;
   noteSearch.value = "";
   noteFilterCompany.value = "all";
   noteFilterType.value = "all";
-  noteFormTitle.textContent = "メモを追加";
+  noteFormTitle.textContent = "メモ";
   closeTaskModal();
   closeNoteModal();
   saveState();
@@ -863,6 +990,13 @@ companySort.addEventListener("change", (event) => {
   state.companySort = event.target.value;
   saveState();
   renderCompanies();
+});
+
+taskSearch.addEventListener("input", (event) => {
+  state.taskSearch = event.target.value;
+  saveState();
+  renderWeekTasks();
+  renderCalendar();
 });
 
 noteSearch.addEventListener("input", () => renderNotes());
@@ -899,7 +1033,7 @@ companyForm.addEventListener("submit", (event) => {
   else state.companies.push(company);
   saveState();
   render();
-  closeDrawer();
+  closeCompanyModal();
   showToast("企業を保存しました");
 });
 
@@ -926,7 +1060,7 @@ taskForm.addEventListener("submit", (event) => {
   render();
   resetTaskForm();
   closeTaskModal();
-  showToast("タスクを追加しました");
+  showToast("追加しました");
 });
 
 noteForm.addEventListener("submit", (event) => {
@@ -954,10 +1088,11 @@ noteForm.addEventListener("submit", (event) => {
   render();
   resetNoteForm();
   closeNoteModal();
-  showToast(index >= 0 ? "メモを更新しました" : "メモを追加しました");
+  showToast(index >= 0 ? "更新しました" : "追加しました");
 });
 
 companySearch.value = state.search;
+taskSearch.value = state.taskSearch;
 companySort.value = state.companySort;
 resetTaskForm();
 render();
