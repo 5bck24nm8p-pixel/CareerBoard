@@ -146,6 +146,7 @@ const weekModalList = document.querySelector("#weekModalList");
 const settingsModal = document.querySelector("#settingsModal");
 const exportCode = document.querySelector("#exportCode");
 const importCode = document.querySelector("#importCode");
+const importCodeFile = document.querySelector("#importCodeFile");
 const calendarTitle = document.querySelector("#calendarTitle");
 const calendarGrid = document.querySelector("#calendarGrid");
 const calendarViewButtons = document.querySelectorAll("[data-calendar-view]");
@@ -364,7 +365,7 @@ function renderCompanies() {
       </div>
       ${selectionStatusControl(company)}
       ${internPeriodText(company)}
-      <p>${escapeHtml(company.memo || "メモなし")}</p>
+      ${collapsibleText(company.memo || "メモなし", "企業メモ")}
       <div class="card-actions">
         ${company.mypageUrl ? linkButton(company.mypageUrl, "URL", "external") : actionButton("URL", "link", `data-edit-company="${company.id}"`)}
         ${company.personalId ? actionButton("ID", "id", `data-copy-personal-id="${company.id}"`) : actionButton("ID", "id", `data-edit-company="${company.id}"`)}
@@ -481,7 +482,7 @@ function renderNotes(filterCompanyId = "") {
         </div>
         <span class="date-pill">${escapeHtml(note.createdAt || "")}</span>
       </header>
-      <p>${escapeHtml(note.body)}</p>
+      ${collapsibleText(note.body, "メモ")}
       <div class="note-card-actions">
         <button class="small-button" type="button" data-edit-note="${note.id}">編集</button>
         <button class="small-button" type="button" data-delete-note="${note.id}">削除</button>
@@ -494,6 +495,17 @@ function renderNotes(filterCompanyId = "") {
 
 function noteTypeLabel(type) {
   return { research: "企業研究", es: "ES", interview: "面接" }[type] || "メモ";
+}
+
+function collapsibleText(text, label = "メモ") {
+  const raw = String(text || "");
+  const shouldCollapse = raw.length > 90 || raw.includes("\n");
+  return `
+    <div class="collapsible-memo ${shouldCollapse ? "is-collapsed" : ""}">
+      <p>${escapeHtml(raw)}</p>
+      ${shouldCollapse ? `<button class="text-button memo-toggle" type="button" data-toggle-memo>表示</button>` : ""}
+    </div>
+  `;
 }
 
 function renderWeekTasks() {
@@ -812,7 +824,8 @@ function buildTransferCode() {
 
 function parseTransferCode(value) {
   const text = value.trim();
-  const token = text.match(/CAREERBOARD:[A-Za-z0-9+/=_-]+/)?.[0];
+  const compact = text.replace(/\s+/g, "");
+  const token = compact.match(/CAREERBOARD:[A-Za-z0-9+/=_-]+/)?.[0];
   if (token) {
     const encoded = token.replace("CAREERBOARD:", "").replaceAll("-", "+").replaceAll("_", "/");
     const json = new TextDecoder().decode(base64ToBytes(encoded));
@@ -843,6 +856,7 @@ function refreshExportCode() {
 function openSettingsModal() {
   refreshExportCode();
   importCode.value = "";
+  importCodeFile.value = "";
   settingsModal.classList.add("is-open");
   settingsModal.setAttribute("aria-hidden", "false");
 }
@@ -874,6 +888,17 @@ function importStateCode() {
   } catch {
     showToast("コードを読み込めませんでした");
   }
+}
+
+function readImportFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    importCode.value = String(reader.result || "");
+    showToast("ファイルを読み込みました");
+  });
+  reader.addEventListener("error", () => showToast("ファイルを読めませんでした"));
+  reader.readAsText(file);
 }
 
 async function copyToClipboard(text, message = "コピーしました") {
@@ -1065,6 +1090,16 @@ document.addEventListener("click", (event) => {
   const openCompany = event.target.closest("[data-open-company]");
   const setStatus = event.target.closest("[data-set-status]");
   const shiftStatus = event.target.closest("[data-shift-status]");
+  const toggleMemo = event.target.closest("[data-toggle-memo]");
+
+  if (toggleMemo) {
+    event.preventDefault();
+    event.stopPropagation();
+    const block = toggleMemo.closest(".collapsible-memo");
+    const isCollapsed = block?.classList.toggle("is-collapsed");
+    toggleMemo.textContent = isCollapsed ? "表示" : "閉じる";
+    return;
+  }
 
   if (nav) {
     setView(nav.dataset.view);
@@ -1129,6 +1164,7 @@ document.querySelector("#closeSettings").addEventListener("click", closeSettings
 document.querySelector("#refreshExportCode").addEventListener("click", refreshExportCode);
 document.querySelector("#copyExportCode").addEventListener("click", () => copyToClipboard(exportCode.value, "コードをコピーしました"));
 document.querySelector("#importStateCode").addEventListener("click", importStateCode);
+importCodeFile.addEventListener("change", (event) => readImportFile(event.target.files?.[0]));
 document.querySelector("#closeCompanyModal").addEventListener("click", closeCompanyModal);
 toggleSelectionFields.addEventListener("click", () => {
   setSelectionFieldsOpen(selectionFields.hidden);

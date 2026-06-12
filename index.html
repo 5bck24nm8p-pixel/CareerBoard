@@ -275,8 +275,12 @@
           <section class="settings-block">
             <div>
               <h3>読込</h3>
-              <p>移行コードを貼り付けて読み込みます。</p>
+              <p>移行コードを貼るか、txtファイルを選びます。</p>
             </div>
+            <label class="file-import-button">
+              ファイルを選択
+              <input id="importCodeFile" type="file" accept=".txt,.json,text/plain,application/json">
+            </label>
             <textarea id="importCode" class="transfer-code" rows="5" placeholder="CAREERBOARD:..."></textarea>
             <button class="primary-button full" type="button" id="importStateCode">読込</button>
           </section>
