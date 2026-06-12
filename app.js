@@ -10,6 +10,27 @@ const taskTypes = [
   { id: "gd", label: "グループディスカッション", color: "#c9d7e8" }
 ];
 
+const selectionStatuses = [
+  { id: "", label: "未定" },
+  { id: "briefing", label: "説明会" },
+  { id: "esSubmitted", label: "ES" },
+  { id: "webtest", label: "Web" },
+  { id: "testcenter", label: "TC" },
+  { id: "gd", label: "GD" },
+  { id: "interview", label: "面接" },
+  { id: "final", label: "最終" }
+];
+
+const taskStatusMap = {
+  briefing: "briefing",
+  es: "esSubmitted",
+  webtest: "webtest",
+  testcenter: "testcenter",
+  gd: "gd",
+  interview: "interview",
+  final: "final"
+};
+
 const industries = [
   "IT / Web",
   "メーカー",
@@ -49,6 +70,7 @@ const demoState = {
       internEnd: offsetDate(10),
       internResult: "pass",
       mainResult: "none",
+      selectionStatus: "interview",
       memo: "プロダクト志向が強い。一次面接では学生時代に工夫した経験を深掘りされそう。"
     },
     {
@@ -62,6 +84,7 @@ const demoState = {
       internEnd: offsetDate(12),
       internResult: "none",
       mainResult: "none",
+      selectionStatus: "esSubmitted",
       memo: "説明会で事業領域を確認。志望理由はまだ弱い。"
     },
     {
@@ -75,6 +98,7 @@ const demoState = {
       internEnd: "",
       internResult: "fail",
       mainResult: "none",
+      selectionStatus: "webtest",
       memo: "勤務地と職種別採用の違いを確認する。"
     }
   ],
@@ -116,6 +140,12 @@ const noteFilterType = document.querySelector("#noteFilterType");
 const noteFormTitle = document.querySelector("#noteFormTitle");
 const weekTaskCount = document.querySelector("#weekTaskCount");
 const weekTaskList = document.querySelector("#weekTaskList");
+const openWeekTasks = document.querySelector("#openWeekTasks");
+const weekModal = document.querySelector("#weekModal");
+const weekModalList = document.querySelector("#weekModalList");
+const settingsModal = document.querySelector("#settingsModal");
+const exportCode = document.querySelector("#exportCode");
+const importCode = document.querySelector("#importCode");
 const calendarTitle = document.querySelector("#calendarTitle");
 const calendarGrid = document.querySelector("#calendarGrid");
 const calendarViewButtons = document.querySelectorAll("[data-calendar-view]");
@@ -184,6 +214,7 @@ function migrateState(nextState) {
     internEnd: "",
     internResult: "none",
     mainResult: "none",
+    selectionStatus: "",
     ...company
   }));
   nextState.tasks = (nextState.tasks || []).map((task) => ({
@@ -319,7 +350,10 @@ function renderCompanies() {
     <article class="company-card" id="company-${company.id}">
       <header>
         <div>
-          <h3>${escapeHtml(company.name)}</h3>
+          <div class="company-title-row">
+            <h3>${escapeHtml(company.name)}</h3>
+            ${selectionStatusBadge(company)}
+          </div>
           <span class="meta">${escapeHtml(company.industry || "業界未設定")}</span>
         </div>
         <span class="priority-pill" data-priority="${company.priority}">志望度 ${priorityLabel(company.priority)}</span>
@@ -328,6 +362,7 @@ function renderCompanies() {
         ${resultPill("intern", company.internResult)}
         ${resultPill("main", company.mainResult)}
       </div>
+      ${selectionStatusControl(company)}
       ${internPeriodText(company)}
       <p>${escapeHtml(company.memo || "メモなし")}</p>
       <div class="card-actions">
@@ -340,6 +375,48 @@ function renderCompanies() {
       ${latestNotePreview(company.id)}
     </article>
   `).join("") : emptyState("企業がまだありません。");
+}
+
+function selectionStatusControl(company) {
+  const inferred = inferCompanyStatus(company.id);
+  const current = company.selectionStatus || inferred;
+  const index = selectionStatusIndex(current);
+  const prev = selectionStatuses[Math.max(0, index - 1)];
+  const next = selectionStatuses[Math.min(selectionStatuses.length - 1, index + 1)];
+  return `
+    <div class="selection-status-block">
+      <div class="mini-label">
+        <span>現在地</span>
+        ${!company.selectionStatus && inferred ? `<small>予定から</small>` : ""}
+      </div>
+      <div class="status-stepper" aria-label="${escapeAttribute(company.name)}の選考状況">
+        <button class="status-move" type="button" data-status-company="${company.id}" data-shift-status="-1" ${index === 0 ? "disabled" : ""} aria-label="前の状況へ">‹ ${prev.label}</button>
+        <button class="status-move" type="button" data-status-company="${company.id}" data-shift-status="1" ${index === selectionStatuses.length - 1 ? "disabled" : ""} aria-label="次の状況へ">${next.label} ›</button>
+      </div>
+    </div>
+  `;
+}
+
+function selectionStatusBadge(company) {
+  const current = company.selectionStatus || inferCompanyStatus(company.id);
+  return `<span class="current-status-badge">${selectionStatusLabel(current)}</span>`;
+}
+
+function selectionStatusLabel(id) {
+  return selectionStatuses.find((status) => status.id === id)?.label || "未定";
+}
+
+function selectionStatusIndex(id) {
+  return Math.max(0, selectionStatuses.findIndex((status) => status.id === id));
+}
+
+function inferCompanyStatus(companyId) {
+  const order = ["briefing", "esSubmitted", "webtest", "testcenter", "gd", "interview", "final"];
+  return state.tasks
+    .filter((task) => task.companyId === companyId)
+    .map((task) => taskStatusMap[task.type] || "")
+    .filter(Boolean)
+    .sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] || "";
 }
 
 function resultPill(kind, value = "none") {
@@ -422,7 +499,21 @@ function noteTypeLabel(type) {
 function renderWeekTasks() {
   const tasks = weekTasks();
   weekTaskCount.textContent = `${tasks.length}件`;
-  weekTaskList.innerHTML = tasks.length ? tasks.map((task) => taskRow(task)).join("") : emptyState("なし");
+  weekTaskList.innerHTML = tasks.length ? tasks.slice(0, 4).map((task) => compactTaskItem(task)).join("") : emptyState("なし");
+  openWeekTasks.hidden = tasks.length === 0;
+}
+
+function compactTaskItem(task) {
+  const company = companyById(task.companyId);
+  const type = taskTypeById(task.type);
+  return `
+    <article class="compact-task" style="--task-color:${type.color}">
+      <button class="task-check compact-check" type="button" data-complete-task="${task.id}" aria-label="完了にする"></button>
+      <span class="compact-task-date">${formatDate(task.date)}${task.time ? ` ${escapeHtml(task.time)}` : ""}</span>
+      <button class="compact-company" type="button" data-open-company="${task.companyId}">${escapeHtml(company?.name || "企業未設定")}</button>
+      <span class="compact-type">${type.label}</span>
+    </article>
+  `;
 }
 
 function taskRow(task) {
@@ -540,6 +631,18 @@ function openDayModal(date) {
 function closeDayModal() {
   dayModal.classList.remove("is-open");
   dayModal.setAttribute("aria-hidden", "true");
+}
+
+function openWeekModal() {
+  const tasks = weekTasks();
+  weekModalList.innerHTML = tasks.length ? tasks.map((task) => taskRow(task)).join("") : emptyState("なし");
+  weekModal.classList.add("is-open");
+  weekModal.setAttribute("aria-hidden", "false");
+}
+
+function closeWeekModal() {
+  weekModal.classList.remove("is-open");
+  weekModal.setAttribute("aria-hidden", "true");
 }
 
 function companyNameButton(company, tag = "h4") {
@@ -697,7 +800,83 @@ function showToast(message) {
   showToast.timeout = window.setTimeout(() => toast.classList.remove("is-visible"), 1700);
 }
 
-async function copyToClipboard(text) {
+function buildTransferCode() {
+  const payload = {
+    app: "CareerBoard",
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    state
+  };
+  return `CAREERBOARD:${bytesToBase64(new TextEncoder().encode(JSON.stringify(payload)))}`;
+}
+
+function parseTransferCode(value) {
+  const text = value.trim();
+  const token = text.match(/CAREERBOARD:[A-Za-z0-9+/=_-]+/)?.[0];
+  if (token) {
+    const encoded = token.replace("CAREERBOARD:", "").replaceAll("-", "+").replaceAll("_", "/");
+    const json = new TextDecoder().decode(base64ToBytes(encoded));
+    const payload = JSON.parse(json);
+    return payload.state || payload;
+  }
+  const payload = JSON.parse(text);
+  return payload.state || payload;
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function refreshExportCode() {
+  exportCode.value = buildTransferCode();
+}
+
+function openSettingsModal() {
+  refreshExportCode();
+  importCode.value = "";
+  settingsModal.classList.add("is-open");
+  settingsModal.setAttribute("aria-hidden", "false");
+}
+
+function closeSettingsModal() {
+  settingsModal.classList.remove("is-open");
+  settingsModal.setAttribute("aria-hidden", "true");
+}
+
+function importStateCode() {
+  if (!importCode.value.trim()) {
+    showToast("移行コードを貼ってください");
+    return;
+  }
+  if (!window.confirm("今の管理情報を上書きして読み込みますか？")) return;
+  try {
+    state = migrateState({ ...structuredClone(demoState), ...parseTransferCode(importCode.value) });
+    saveState();
+    companySearch.value = state.search || "";
+    taskSearch.value = state.taskSearch || "";
+    companySort.value = state.companySort || "priority";
+    noteSearch.value = "";
+    noteFilterCompany.value = "all";
+    noteFilterType.value = "all";
+    render();
+    setView(state.activeView || "tasks");
+    closeSettingsModal();
+    showToast("読み込みました");
+  } catch {
+    showToast("コードを読み込めませんでした");
+  }
+}
+
+async function copyToClipboard(text, message = "コピーしました") {
   try {
     if (navigator.clipboard?.writeText) {
       try {
@@ -708,7 +887,7 @@ async function copyToClipboard(text) {
     } else {
       fallbackCopyToClipboard(text);
     }
-    showToast("IDコピー");
+    showToast(message);
   } catch {
     showToast("コピーできませんでした");
   }
@@ -802,7 +981,7 @@ function hasInternPeriod(company) {
 }
 
 function isInternDay(company, value) {
-  return hasInternPeriod(company) && company.internStart <= value && value <= company.internEnd;
+  return company.internResult !== "fail" && hasInternPeriod(company) && company.internStart <= value && value <= company.internEnd;
 }
 
 function internTone(company) {
@@ -851,6 +1030,7 @@ function jumpToCompany(companyId) {
   const company = companyById(companyId);
   if (!company) return;
   closeDayModal();
+  closeWeekModal();
   setView("companies");
   state.search = "";
   companySearch.value = "";
@@ -861,7 +1041,7 @@ function jumpToCompany(companyId) {
     if (!card) return;
     card.scrollIntoView({ behavior: "smooth", block: "center" });
     card.classList.add("is-focus");
-    window.setTimeout(() => card.classList.remove("is-focus"), 1400);
+    window.setTimeout(() => card.classList.remove("is-focus"), 2200);
   }, 0);
 }
 
@@ -883,6 +1063,8 @@ document.addEventListener("click", (event) => {
   const copyPersonalId = event.target.closest("[data-copy-personal-id]");
   const completeTask = event.target.closest("[data-complete-task]");
   const openCompany = event.target.closest("[data-open-company]");
+  const setStatus = event.target.closest("[data-set-status]");
+  const shiftStatus = event.target.closest("[data-shift-status]");
 
   if (nav) {
     setView(nav.dataset.view);
@@ -891,7 +1073,7 @@ document.addEventListener("click", (event) => {
   if (editCompany) openCompanyModal(companyById(editCompany.dataset.editCompany));
   if (copyPersonalId) {
     const company = companyById(copyPersonalId.dataset.copyPersonalId);
-    if (company?.personalId) copyToClipboard(company.personalId);
+    if (company?.personalId) copyToClipboard(company.personalId, "IDコピー");
   }
   if (createTask) {
     setView("tasks");
@@ -918,9 +1100,35 @@ document.addEventListener("click", (event) => {
   if (openCompany) {
     jumpToCompany(openCompany.dataset.openCompany);
   }
+  if (shiftStatus) {
+    const company = companyById(shiftStatus.dataset.statusCompany);
+    if (!company) return;
+    const current = company.selectionStatus || inferCompanyStatus(company.id);
+    const nextIndex = Math.min(
+      selectionStatuses.length - 1,
+      Math.max(0, selectionStatusIndex(current) + Number(shiftStatus.dataset.shiftStatus))
+    );
+    company.selectionStatus = selectionStatuses[nextIndex].id;
+    saveState();
+    renderCompanies();
+    showToast("現在地を更新しました");
+  }
+  if (setStatus) {
+    const company = companyById(setStatus.dataset.statusCompany);
+    if (!company) return;
+    company.selectionStatus = setStatus.dataset.setStatus;
+    saveState();
+    renderCompanies();
+    showToast("現在地を更新しました");
+  }
 });
 
 document.querySelector("#openCompanyForm").addEventListener("click", () => openCompanyModal());
+document.querySelector("#openSettings").addEventListener("click", openSettingsModal);
+document.querySelector("#closeSettings").addEventListener("click", closeSettingsModal);
+document.querySelector("#refreshExportCode").addEventListener("click", refreshExportCode);
+document.querySelector("#copyExportCode").addEventListener("click", () => copyToClipboard(exportCode.value, "コードをコピーしました"));
+document.querySelector("#importStateCode").addEventListener("click", importStateCode);
 document.querySelector("#closeCompanyModal").addEventListener("click", closeCompanyModal);
 toggleSelectionFields.addEventListener("click", () => {
   setSelectionFieldsOpen(selectionFields.hidden);
@@ -929,6 +1137,8 @@ openTaskForm.addEventListener("click", () => openTaskModal());
 document.querySelector("#closeTaskModal").addEventListener("click", closeTaskModal);
 openNoteForm.addEventListener("click", () => openNoteModal());
 document.querySelector("#closeNoteModal").addEventListener("click", closeNoteModal);
+openWeekTasks.addEventListener("click", openWeekModal);
+document.querySelector("#closeWeekModal").addEventListener("click", closeWeekModal);
 document.querySelector("#prevMonth").addEventListener("click", () => shiftMonth(-1));
 document.querySelector("#nextMonth").addEventListener("click", () => shiftMonth(1));
 calendarViewButtons.forEach((button) => {
@@ -956,6 +1166,12 @@ noteModal.addEventListener("click", (event) => {
 });
 dayModal.addEventListener("click", (event) => {
   if (event.target === dayModal) closeDayModal();
+});
+weekModal.addEventListener("click", (event) => {
+  if (event.target === weekModal) closeWeekModal();
+});
+settingsModal.addEventListener("click", (event) => {
+  if (event.target === settingsModal) closeSettingsModal();
 });
 document.querySelector("#cancelCompleteTask").addEventListener("click", closeConfirmModal);
 document.querySelector("#confirmCompleteTask").addEventListener("click", completePendingTask);
@@ -1007,6 +1223,7 @@ companyForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(companyForm);
   const id = data.get("id");
+  const existingCompany = state.companies.find((item) => item.id === id);
   const company = {
     id: id || crypto.randomUUID(),
     name: data.get("name").trim(),
@@ -1018,6 +1235,7 @@ companyForm.addEventListener("submit", (event) => {
     internEnd: data.get("internEnd"),
     internResult: data.get("internResult"),
     mainResult: data.get("mainResult"),
+    selectionStatus: existingCompany?.selectionStatus || "",
     memo: data.get("memo").trim()
   };
   if ((company.internStart && !company.internEnd) || (!company.internStart && company.internEnd)) {

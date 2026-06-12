@@ -132,6 +132,33 @@ p {
   line-height: 1;
 }
 
+.brand-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--page, var(--line)) 24%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--page-soft, #fff) 58%, #fff);
+  color: var(--muted);
+}
+
+.settings-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-button:hover {
+  color: var(--page, var(--accent));
+  border-color: var(--page, var(--accent));
+}
+
 .brand p,
 .eyebrow,
 .meta {
@@ -214,6 +241,12 @@ p {
 .composer-head,
 .section-head {
   justify-content: space-between;
+}
+
+.head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .primary-button,
@@ -352,7 +385,37 @@ p {
 
 .company-card.is-focus {
   border-color: var(--page, var(--accent));
-  box-shadow: 0 0 0 4px var(--page-glow, rgba(230, 111, 92, 0.18)), var(--shadow);
+  box-shadow: 0 0 0 4px var(--page-glow, rgba(230, 111, 92, 0.18)), 0 18px 42px rgba(230, 111, 92, 0.18);
+  animation: focusPulse 2.2s ease;
+}
+
+.company-card.is-focus::after {
+  content: "ここ";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--page, var(--accent));
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+@keyframes focusPulse {
+  0% {
+    transform: translateY(0);
+  }
+  18% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .company-card::before {
@@ -377,6 +440,26 @@ p {
   margin: 0;
   font-size: 1.05rem;
   line-height: 1.35;
+}
+
+.company-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.current-status-badge {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--page, var(--accent));
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 850;
+  box-shadow: 0 7px 16px var(--page-glow, rgba(230, 111, 92, 0.16));
 }
 
 .company-jump {
@@ -409,6 +492,88 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.selection-status-block {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--page, var(--line)) 12%, var(--line));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--page-soft, #fff) 42%, #fff);
+}
+
+.mini-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.mini-label small {
+  color: color-mix(in srgb, var(--page, var(--muted)) 68%, var(--muted));
+  font-size: 0.7rem;
+}
+
+.selection-status-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.selection-status-list::-webkit-scrollbar {
+  display: none;
+}
+
+.status-chip {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.status-chip.is-active {
+  border-color: var(--page, var(--accent));
+  background: var(--page, var(--accent));
+  color: #fff;
+  box-shadow: 0 6px 14px var(--page-glow, rgba(230, 111, 92, 0.16));
+}
+
+.status-stepper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-move {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--page, var(--line)) 28%, var(--line));
+  border-radius: 999px;
+  background: #fff;
+  color: var(--page, var(--accent));
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+  overflow: hidden;
+  padding: 0 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-move:disabled {
+  opacity: 0.34;
 }
 
 .intern-period {
@@ -509,6 +674,11 @@ p {
   font-size: 0.84rem;
 }
 
+.small-button.icon-only {
+  width: 34px;
+  padding: 0;
+}
+
 .company-card .card-actions {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -582,8 +752,48 @@ p {
 }
 
 .compact-task-list {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: stretch;
+  grid-template-columns: 1fr;
+}
+
+.compact-task {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(74px, 0.8fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--task-color) 52%, var(--line));
+  border-left: 5px solid var(--task-color);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--task-color) 14%, #fff);
+  text-align: left;
+}
+
+.compact-check {
+  width: 20px;
+  height: 20px;
+  margin-top: 0;
+}
+
+.compact-task-date,
+.compact-type {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.compact-company {
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .panel {
@@ -722,10 +932,11 @@ p {
   text-overflow: ellipsis;
   white-space: nowrap;
   border-radius: 999px;
-  padding: 2px 6px;
+  padding: 1px 5px;
   background: var(--task-color);
   color: var(--ink);
-  font-size: 0.7rem;
+  font-size: 0.62rem;
+  font-weight: 750;
 }
 
 .calendar-intern {
@@ -937,6 +1148,48 @@ textarea:focus {
   box-shadow: none;
 }
 
+.settings-modal {
+  width: min(640px, 100%);
+}
+
+.settings-panel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.settings-block {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.settings-block h3 {
+  font-size: 1rem;
+}
+
+.settings-block p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.transfer-code {
+  min-height: 112px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .confirm-backdrop {
   z-index: 70;
 }
@@ -1099,6 +1352,10 @@ textarea:focus {
 
   .calendar-panel {
     min-height: auto;
+  }
+
+  .compact-task-list {
+    grid-template-columns: 1fr;
   }
 
   .calendar-day {

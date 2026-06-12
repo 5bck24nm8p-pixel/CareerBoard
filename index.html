@@ -17,7 +17,12 @@
         <div class="brand">
           <div class="brand-mark" aria-hidden="true">CB</div>
           <div>
-            <h1>CareerBoard</h1>
+            <div class="brand-title-row">
+              <h1>CareerBoard</h1>
+              <button class="settings-button" type="button" id="openSettings" aria-label="設定">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5a7.8 7.8 0 0 0 0-3l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5a7.8 7.8 0 0 0 0 3l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path></svg>
+              </button>
+            </div>
             <p>就活CRM</p>
           </div>
         </div>
@@ -46,10 +51,6 @@
           </div>
           <div class="top-actions" hidden>
             <button class="ghost-button" type="button" id="resetDemo">リセット</button>
-            <button class="primary-button" type="button" id="openCompanyForm">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
-              追加
-            </button>
           </div>
         </header>
 
@@ -59,6 +60,10 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 0 1 4.8 9.6l4.3 4.3-1.4 1.4-4.3-4.3A6 6 0 1 1 10 4Zm0 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"></path></svg>
               <input id="companySearch" type="search" placeholder="検索">
             </label>
+            <button class="primary-button" type="button" id="openCompanyForm">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"></path></svg>
+              追加
+            </button>
           </section>
 
           <div class="toolbar">
@@ -90,7 +95,12 @@
             <section class="panel upcoming-panel">
               <div class="section-head">
                 <h3>7日以内</h3>
-                <span id="weekTaskCount" class="count-pill">0件</span>
+                <div class="head-actions">
+                  <span id="weekTaskCount" class="count-pill">0件</span>
+                  <button class="small-button icon-only" type="button" id="openWeekTasks" aria-label="7日以内の予定を一覧で見る">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v2H4V5Zm0 6h16v2H4v-2Zm0 6h16v2H4v-2Z"></path></svg>
+                  </button>
+                </div>
               </div>
               <div id="weekTaskList" class="task-list compact-task-list"></div>
             </section>
@@ -239,6 +249,54 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div class="modal-backdrop" id="settingsModal" aria-hidden="true">
+      <section class="task-modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="settings-panel">
+          <div class="composer-head">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h2 id="settingsTitle">設定</h2>
+            </div>
+            <button class="icon-button" type="button" id="closeSettings" aria-label="閉じる">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"></path></svg>
+            </button>
+          </div>
+          <section class="settings-block">
+            <div>
+              <h3>書き出し</h3>
+              <p>このコードを保存すると、別の端末で復元できます。</p>
+            </div>
+            <textarea id="exportCode" class="transfer-code" readonly rows="5"></textarea>
+            <div class="settings-actions">
+              <button class="ghost-button" type="button" id="refreshExportCode">更新</button>
+              <button class="primary-button" type="button" id="copyExportCode">コピー</button>
+            </div>
+          </section>
+          <section class="settings-block">
+            <div>
+              <h3>読込</h3>
+              <p>移行コードを貼り付けて読み込みます。</p>
+            </div>
+            <textarea id="importCode" class="transfer-code" rows="5" placeholder="CAREERBOARD:..."></textarea>
+            <button class="primary-button full" type="button" id="importStateCode">読込</button>
+          </section>
+        </div>
+      </section>
+    </div>
+    <div class="modal-backdrop" id="weekModal" aria-hidden="true">
+      <section class="day-modal" role="dialog" aria-modal="true" aria-labelledby="weekModalTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Next 7 Days</p>
+            <h2 id="weekModalTitle">7日以内</h2>
+          </div>
+          <button class="icon-button" type="button" id="closeWeekModal" aria-label="閉じる">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6.4 5 12.6 12.6-1.4 1.4L5 6.4 6.4 5Zm12.6 1.4L6.4 19 5 17.6 17.6 5 19 6.4Z"></path></svg>
+          </button>
+        </div>
+        <div id="weekModalList" class="day-task-list"></div>
+      </section>
+    </div>
     <div class="modal-backdrop" id="dayModal" aria-hidden="true">
       <section class="day-modal" role="dialog" aria-modal="true" aria-labelledby="dayModalTitle">
         <div class="section-head">
